@@ -1,0 +1,4857 @@
+// This file is part of Moodle - http://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+
+// @package   theme_accessible
+// @copyright 2022-2023 Koditik Dev team
+// @copyright 2023-2026 Fernando Acedo
+// @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+
+// stylelint-disable max-line-length -- unicode-range strings, inline SVG data URLs and long selectors cannot be wrapped
+// stylelint-disable declaration-no-important -- deliberate: the theme must beat Boost and Bootstrap
+// stylelint-disable csstree/validator -- the validator cannot check values that contain var()
+// stylelint-disable selector-pseudo-element-no-unknown -- ::picker and ::picker-icon are valid, newer than the rule
+// stylelint-disable function-url-scheme-disallowed-list -- data: URLs are inline SVG icons that must not depend on a request
+// ========================================
+// ACCESSIBLE THEME FOR MOODLE
+// Complete optimized styles for visually impaired users
+// ========================================
+//
+// This theme prioritizes:
+// - High contrast (21:1 ratio black/white)
+// - Large touch targets (44px minimum)
+// - Clear focus indicators (4px black ring with white halo)
+// - Consistent hover states
+// - Screen reader support
+// - Keyboard navigation
+//
+// Purpose: the main stylesheet of the theme. Moodle compiles it on top of Boost's SCSS (no build step). Every colour
+// is a --accessible-* custom property (section 32), so the light and high contrast palettes share the same rules.
+//
+// @package   theme_accessible
+// @copyright 2022-2023 Koditik Dev team
+// @copyright 2023-2026 Fernando Acedo
+// ========================================
+
+// ============================================================================
+// HOW THIS FILE IS ORGANISED
+// ============================================================================
+//
+// - Sections go from the building blocks (functions, tokens, mixins) to the pieces of the page (base, links, buttons,
+//   forms, alerts, navigation...), then the user options, the palette and the special cases. A rule goes in the section
+//   of the thing it styles; a new topic gets a new numbered section and a line in the table of contents below.
+// - Colours are tokens (--accessible-*), defined once for the light palette and once for high contrast in section 32.
+// - Sizes that must grow with the text are in rem (torem() converts px), because Bootstrap's breakpoints are in px and do
+//   not follow the text size option.
+// - !important is deliberate: Boost, Bootstrap's utilities (.text-white, .bg-light, .btn-*) and the Moodle 5.3 design
+//   system set colours and sizes with high specificity, and the contrast and target-size guarantees of the theme must win.
+// - The user options reach the CSS as body classes (see classes/preferences.php): accessible-font-*, accessible-fontsize-*,
+//   accessible-spacing-*, accessible-contrast-high, accessible-motion-reduced, accessible-focus-thick,
+//   accessible-colortype-* and accessible-colorstrength-*.
+// - There is no build step: Moodle compiles this file on top of Boost's SCSS. Purge the caches after changing it.
+//
+
+// ============================================================================
+// TABLE OF CONTENTS
+// Search for the section number + period (e.g. "7.") to jump to that section
+// ============================================================================
+//
+//  1.    UTILITIES & FUNCTIONS
+//  2.    DESIGN TOKENS
+//  3.    MIXINS
+//  4.    BASE STYLES
+//      4.2  Scrollbars
+//  5.    TYPOGRAPHY
+//  6.    LINKS
+//      6.1  Pagination bars
+//  7.    BUTTONS
+//  8.    FORM ELEMENTS
+//  9.    ALERTS & NOTIFICATIONS
+//  10.   NAVIGATION
+//  11.   DRAWERS
+//  12.   USER MENU
+//  13.   DROPDOWNS AND LIST ITEMS
+//  14.   SECONDARY NAVIGATION AND NAVBAR LINKS
+//  15.   FOCUS INDICATORS - Global override
+//  16.   FORMS: REQUIRED FIELD ASTERISK
+//  17.   FORMS: VALIDATION FEEDBACK VISIBILITY
+//  18.   COURSE INDEX, COURSE PAGE AND COLLAPSIBLE SECTIONS
+//  19.   TINYMCE
+//  20.   EDIT MODE TOGGLE
+//  21.   PAGE FOOTER
+//  22.   ICONS
+//  23.   FILE PICKER
+//  24.   BOOST BLUE HOVER / SELECTED STATES
+//  25.   COURSE MANAGEMENT AND SITE-WIDE CARDS
+//  26.   BLOCKS
+//  27.   QUIZ
+//  28.   LOGIN PAGE
+//  29.   INFORMATION TAB OF THE THEME SETTINGS
+//  30.   INLINE CODE
+//  31.   USER ACCESSIBILITY OPTIONS
+//  32.   COLOUR PALETTE AND HIGH CONTRAST
+//  33.   LARGE TEXT AND SMALL WINDOWS
+//  34.   VIDEO PLAYER
+//  35.   CALENDAR
+//
+// ============================================================================
+
+
+// ========================================
+// 1. UTILITIES & FUNCTIONS
+// ========================================
+
+// Base font size for rem calculations
+$base-font-size: 16;
+
+/**
+ * Convert pixels to rem units
+ * @param {Number} $px-value - Value in pixels or rem
+ * @return {Number} - Value in rem
+ */
+@function torem($px-value) {
+    @if unitless($px-value) {
+        @return ($px-value / $base-font-size) * 1rem;
+    }
+    @else if unit($px-value) == 'px' {
+        @return ($px-value / ($base-font-size * 1px)) * 1rem;
+    }
+    @else {
+        @return $px-value; // already rem (or another unit): left as it is
+    }
+}
+
+
+// Inline SVG icons used as backgrounds (checkbox tick, radio dot, close X). A data URI cannot read CSS variables, so the fill
+// is passed URL-encoded (%23fff = white, %23000 = black) and each icon is used in a pair: black on white in the light palette,
+// white on black in high contrast. These are the only fixed colours outside the palette.
+@function svg-tick($fill) {
+    @return url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='#{$fill}' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='m6 10 3 3 6-6'/%3e%3c/svg%3e");
+}
+
+@function svg-dot($radius, $fill) {
+    @return url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='#{$radius}' fill='#{$fill}'/%3e%3c/svg%3e");
+}
+
+@function svg-close($fill) {
+    @return url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='#{$fill}'%3e%3cpath d='M.293.293a1 1 0 0 1 1.414 0L8 6.586 14.293.293a1 1 0 1 1 1.414 1.414L9.414 8l6.293 6.293a1 1 0 0 1-1.414 1.414L8 9.414l-6.293 6.293a1 1 0 0 1-1.414-1.414L6.586 8 .293 1.707a1 1 0 0 1 0-1.414z'/%3e%3c/svg%3e");
+}
+
+
+// ========================================
+// 2. DESIGN TOKENS (Variables)
+// ========================================
+
+// --- Typography ---
+$font-family-base: 'Lexend Deca', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+$font-size-base: 1.2rem;    // 19.2px (larger for accessibility)
+$font-size-h1: 2.5rem;      // 40px
+$font-size-h2: 2rem;        // 32px
+$font-size-h3: 1.75rem;     // 28px
+$font-size-h4: 1.5rem;      // 24px
+$font-size-h5: 1.35rem;     // 21.6px - above base font size
+$font-size-h6: 1.25rem;     // 20px   - above base font size, distinct from h5
+
+// --- Colours (palette tokens) ---
+// Every colour the theme draws with is a CSS custom property, so the "high contrast" user option (section 32) can swap
+// the whole palette by redefining them on the body. The SCSS names below are the ones used everywhere else; the actual
+// values (normal = black on white, high = white on black) live in the :root / body rules of section 32.
+$color-bg: var(--accessible-bg);
+$color-text: var(--accessible-text);
+$color-border: var(--accessible-border);
+$color-muted: var(--accessible-muted);          // Secondary text
+$color-surface: var(--accessible-surface);      // Quiet grey fill (disabled, hover, zebra)
+$color-strong-grey: var(--accessible-strong-grey);
+$color-divider: var(--accessible-divider);      // Hairlines between list rows
+$color-badge: var(--accessible-badge);          // Fill of the red notification count
+$color-error-text: var(--accessible-error-text);
+
+// Links
+// Links are black like the text: the underline marks them as links (never colour alone) and a thicker underline
+// marks hover. Blue/purple links gave 9.4:1 and a second colour to read; black gives 21:1. In high contrast they are white.
+$color-link: var(--accessible-link);              // Same colour visited and hovered
+
+// Focus indicators
+$color-focus: var(--accessible-focus);          // Yellow: hover/focus background fill only (black text on it is 13.9:1)
+$color-on-focus: #000;                       // Text on that yellow fill: black in both modes
+$color-focus-ring: var(--accessible-focus-ring);  // Focus ring: 21:1 on the page
+$color-focus-halo: var(--accessible-focus-halo);  // Gap between the ring and the element, keeps the ring visible on any fill
+
+// Semantic colors
+$color-error: var(--accessible-error);
+$color-success: var(--accessible-success);
+$color-warning: var(--accessible-warning);
+$color-info: var(--accessible-info);
+$color-code: var(--accessible-code); // Inline <code>: pink-red, 7.8:1 on white and 10.9:1 on black
+
+
+// --- Spacing Scale (rem-based) ---
+$spacing-xs: 0.25rem;   // 4px
+$spacing-sm: 0.5rem;    // 8px
+$spacing-md: 0.75rem;   // 12px
+$spacing-lg: 1rem;      // 16px
+$spacing-xl: 1.5rem;    // 24px
+
+// --- Borders & Outlines ---
+$border-width: 2px;
+$border-radius: 4px;            // Slight rounding for better UX
+$focus-outline-width: var(--accessible-focus-width, 4px); // 8px with the "thick" preference (section 31)
+$focus-outline-offset: 3px;
+
+// --- Touch Targets (WCAG 2.5.5 Level AAA) ---
+$min-touch-target: torem(44px); // rem, so controls grow with the user's text size
+$field-height: torem(55px);          // Text inputs, selects and textareas share one height (padding 12 + line 26.9 + border 4).
+$check-size: torem(28px);            // Checkbox / radio box; the clickable row is $min-touch-target.
+// Height of the fixed top bar: accessible.js publishes the real one (the bar wraps to two rows at larger text sizes).
+$navbar-height: var(--accessible-navbar-height, #{torem(70px)});
+
+// --- Transitions ---
+$transition-focus: outline 0.15s ease-in-out, background-color 0.15s ease-in-out;
+
+
+// ========================================
+// 3. MIXINS (Visual Patterns for Non-Color Distinction)
+// ========================================
+
+/**
+ * Diagonal stripes pattern
+ * Used for error/danger states
+ */
+@mixin diagonal-stripes($color, $angle: 45deg, $width: 10px, $thickness: 2px) {
+    background-image:
+        repeating-linear-gradient(
+            $angle,
+            transparent,
+            transparent $width,
+            $color $width,
+            $color ($width + $thickness)
+        ) !important;
+}
+
+/**
+ * Dots pattern
+ * Used for success states
+ */
+@mixin dots-pattern($color, $size: 6px, $spacing: 14px) {
+    background-image:
+        radial-gradient(
+            circle at center,
+            $color 0,
+            $color $size,
+            transparent $size,
+            transparent $spacing
+        ) !important;
+    background-size: $spacing $spacing !important;
+}
+
+/**
+ * Grid pattern
+ * Used for info states
+ */
+@mixin grid-pattern($color, $size: 12px, $thickness: 2px) {
+    background-image:
+        linear-gradient(to right, $color $thickness, transparent $thickness),
+        linear-gradient(to bottom, $color $thickness, transparent $thickness) !important;
+    background-size: $size $size !important;
+}
+
+/**
+ * Zigzag pattern
+ * Used for warning states
+ */
+@mixin zigzag-pattern($color, $thickness: 2px) {
+    $adjusted-size: 20px + $thickness;
+    background-image:
+        linear-gradient(135deg, $color 25%, transparent 25%),
+        linear-gradient(225deg, $color 25%, transparent 25%),
+        linear-gradient(45deg, $color 25%, transparent 25%),
+        linear-gradient(315deg, $color 25%, transparent 25%) !important;
+    background-size: $adjusted-size $adjusted-size !important;
+    background-position: 0 0, 10px 0, 10px -10px, 0 10px !important;
+}
+
+
+// ========================================
+// 4. BASE STYLES
+// ========================================
+
+// Reset box-sizing for all elements
+*,
+*::before,
+*::after {
+    box-sizing: border-box !important;
+}
+
+// HTML root settings
+html {
+    font-size: 100% !important;         // Respect user's browser settings
+    scroll-behavior: smooth !important;  // Smooth scrolling for anchor links
+    // A focused element is scrolled clear of the fixed top bar and of the fixed "Back to top" button / sticky footer, not
+    // left under them (WCAG 2.4.12).
+    scroll-padding-top: calc(#{$navbar-height} + 1rem);
+    scroll-padding-bottom: 5rem;
+
+    &:has(body.hasstickyfooter) {
+        scroll-padding-bottom: calc(5rem + var(--accessible-stickyfooter-height, #{$stickyfooter-height}));
+    }
+}
+
+// Body base styles
+body {
+    background-color: $color-bg !important;
+    color: $color-text !important;
+    font-size: $font-size-base !important;
+    line-height: 1.6 !important;        // Optimal readability (WCAG 1.4.8)
+    font-family: $font-family-base !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+// Main column of standard and limited-width pages: up to 80% of the window from 48em (768px, measured in the browser's
+// own em like the text size caps); below it the whole width, as the side margins left too little room for large text.
+@media (min-width: 48em) {
+    .pagelayout-standard #page.drawers .main-inner,
+    body.limitedwidth #page.drawers .main-inner {
+        max-width: 80% !important;
+    }
+}
+
+// 4.2 Scrollbars
+// Wider than the browser default so they are easy to see and grab with a magnifier or a shaky pointer.
+// Chromium/Safari/Edge only: ::-webkit-scrollbar is the sole way to set a width. Firefox ignores it and
+// cannot be widened (scrollbar-width only offers auto/thin/none), so it keeps its default width but gets
+// the same black-on-white colours. Never set scrollbar-width/-color for Chromium: they would override the rules below.
+$scrollbar-size: torem(24px);          // Same width everywhere, so every scrollbar is perceived as the same control
+
+// !important because Boost's thin-scrolls selectors are often more specific (nested, ID-based).
+@mixin accessible-scrollbar {
+    &::-webkit-scrollbar {
+        width: $scrollbar-size !important;
+        height: $scrollbar-size !important;
+    }
+
+    &::-webkit-scrollbar-track {
+        background: $color-bg !important;
+        border-left: 2px solid $color-text !important;    // Frame so the track is visible against the white page (WCAG 1.4.11)
+        border-right: 0 !important;
+    }
+
+    &::-webkit-scrollbar-thumb {
+        background: $color-text !important;
+        border: 4px solid $color-bg !important;           // White gap makes the thumb read as a separate handle
+        border-radius: 0 !important;
+        min-height: torem(48px);
+        min-width: torem(48px);
+    }
+
+    // No hover/drag state on purpose: the thumb never changes shape or colour. The !important background above
+    // also beats Boost's grey ::-webkit-scrollbar-thumb:hover.
+
+    &::-webkit-scrollbar-corner {
+        background: $color-bg !important;
+    }
+}
+
+* {
+    @include accessible-scrollbar;
+}
+
+// Boost's thin-scrolls mixin sets scrollbar-width: thin and a 12px round thumb; in Chromium that switches the
+// ::-webkit-scrollbar sizing off, so cancel it on every container that uses it (drawers, tables, report builder,
+// process monitor) and on Boost's .visual-scroll-x.
+$boost-scroll-containers: ".drawercontent", "#page.drawers", ".table-responsive", ".visual-scroll-x",
+    ".reportbuilder-filters-sidebar", ".reportbuilder-report .reportbuilder-report-container",
+    ".reportbuilder-sidebar-menu-cards", ".reportbuilder-sidebar-settings", ".process-list";
+
+#{$boost-scroll-containers} {
+    scrollbar-width: auto !important;
+    scrollbar-color: auto !important;
+}
+
+@supports (-moz-appearance: none) {
+    *,
+    #{$boost-scroll-containers} {
+        scrollbar-color: $color-text $color-bg !important;
+    }
+}
+
+
+// ========================================
+// 5. TYPOGRAPHY
+// ========================================
+
+// Headings
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    color: $color-text !important;
+    font-weight: 700 !important;
+    margin-top: $spacing-lg !important;
+    margin-bottom: $spacing-md !important;
+    line-height: 1.3 !important;
+    letter-spacing: 0.02em !important;
+}
+
+// Heading sizes, in rem so they follow the text size option.
+@each $tag, $size in (
+    h1: $font-size-h1, h2: $font-size-h2, h3: $font-size-h3, h4: $font-size-h4, h5: $font-size-h5, h6: $font-size-h6
+) {
+    #{$tag} {
+        font-size: $size !important;
+    }
+}
+
+// Paragraphs
+p {
+    font-size: $font-size-base !important;
+    line-height: 1.6 !important;
+    margin-bottom: $spacing-md !important;
+    max-width: 70ch !important;         // Optimal line length for readability
+}
+
+// Text emphasis
+strong,
+b {
+    font-weight: 700 !important;
+}
+
+em {
+    font-style: italic !important;
+}
+
+
+// Bootstrap's muted greys (#6a737b is 4.83:1) fail AAA, so they are plain black like the rest of the text.
+.text-muted,
+.text-body-secondary,
+.text-secondary,
+.progress-text {
+    color: $color-text !important;
+}
+
+// Gradebook setup: the item type under each name ("Tarea", "Cálculo total") is 75% grey, 6.9:1 on the grey total row.
+// Black here; .dimmed_text elsewhere also marks hidden/disabled items, so it is not changed globally.
+#grade_edit_tree_table .dimmed_text {
+    color: $color-text !important;
+}
+
+// The pencil of in-place editable values (participants roles and groups) was link blue.
+.quickediticon,
+.quickediticon .icon {
+    color: $color-text !important;
+}
+
+// Initials avatars (the grey circle with the user's initials) add noise, and a screen reader reads the name twice (as
+// the avatar and as the link). Hidden in tables and in a plain page header image, where the name is always next to them,
+// and everywhere else except where the avatar is the only content of a link (the link would be empty). Real photos stay.
+td .userinitials,
+th .userinitials,
+.page-header-image > .userinitials,
+.userinitials:not(a > .userinitials) {
+    display: none !important;
+}
+
+
+// ========================================
+// 6. LINKS
+// ========================================
+
+// Links are black and underlined: the underline, not the colour, marks them. High contrast values are in section 32.
+a {
+    color: $color-link !important;
+    text-decoration: underline !important;
+    text-underline-offset: 0.15em !important;
+
+    &:visited {
+        color: $color-link !important;
+    }
+
+    &:hover {
+        color: $color-link !important;
+        text-decoration-thickness: 3px !important;
+    }
+
+    &:focus-visible {
+        outline: $focus-outline-width solid $color-focus-ring !important;
+        outline-offset: $focus-outline-offset !important;
+        text-decoration: underline !important;
+    }
+}
+
+// The only dark panel left (footer debugging tools, shown while developer debugging is on): white links on it.
+.footer-dark a,
+.footer-dark a:visited,
+.footer-dark a:hover {
+    color: $color-bg !important;
+}
+
+// 6.1 Pagination bars (A-Z initials filter in participants, paging bars)
+// Black on white with a 2px black frame; the current item is white on black (Boost's blue fill on the blue link
+// was 1.75:1) and bold. Touch target size like the buttons, in rem so it follows the text size.
+// Moodle's initials bar splits the alphabet in groups (separate lists) with no space between them, and Bootstrap's
+// list margins made the wrap gap taller than the gap between letters: one 0.25rem gap everywhere.
+.initialbar {
+    align-items: flex-start;
+    margin-bottom: $spacing-md;      // First name / Last name bars were glued together
+}
+
+// The label gets the height of the letters and one fixed width, so both bars start their letters at the same
+// column ("Nombre" and "Apellido(s)" are not equally wide). The letters take the rest of the row and wrap inside it.
+.initialbarlabel {
+    display: flex;
+    align-items: center;
+    min-width: 8rem;
+    min-height: $min-touch-target;
+}
+
+// The A-Z groups sit beside their label and wrap on narrow windows.
+.initialbargroups {
+    flex: 1 1 20rem;
+    min-width: 0;
+    gap: 0.25rem;
+}
+
+// The pagination inside an A-Z bar sits flush: the bar provides the spacing.
+.initialbar .pagination {
+    margin: 0;
+}
+
+// All pagination bars (paging, A-Z filter): spacing between items and 44px page links.
+.pagination {
+    gap: 0.25rem;
+
+    .page-item .page-link,
+    .page-item .page-link:visited {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: $min-touch-target;
+        min-height: $min-touch-target;
+        margin-left: 0;
+        padding: 0 $spacing-sm;
+        font-size: $font-size-base;
+        border: $border-width solid $color-text;
+        border-radius: $border-radius;
+        background-color: $color-bg;
+        color: $color-text !important;
+    }
+
+    .page-item .page-link:hover {
+        background-color: $color-focus;
+        color: $color-text !important;
+    }
+
+    .page-item.active .page-link,
+    .page-item.active .page-link:visited,
+    .page-item.active .page-link:hover {
+        background-color: $color-text;
+        border-color: $color-text;
+        color: $color-bg !important;
+        font-weight: 700;
+    }
+
+    .page-item.disabled .page-link {
+        border-style: dashed;     // Same "disabled" cue as the form controls: not only grey
+    }
+}
+
+
+// ========================================
+// 7. BUTTONS
+// ========================================
+
+// Every button and button-like element: 44px minimum target, 2px frame, black on white. The variants below only change the
+// hover/focus fill, and the semantic ones add a pattern.
+.btn,
+button,
+input[type="submit"],
+input[type="button"],
+input[type="reset"],
+[role="button"],
+#courseindexdrawerheading .courseindex-link {
+    // Size (ensure touch target compliance)
+    min-width: $min-touch-target !important;
+    min-height: $min-touch-target !important;
+    padding: $spacing-md $spacing-lg !important;
+
+    // Typography
+    font-size: $font-size-base !important;
+    font-weight: 600 !important;
+    line-height: 1.4 !important;
+
+    // Appearance
+    background-color: $color-bg !important;
+    color: $color-text !important;
+    border: $border-width solid $color-border !important;
+    border-radius: $border-radius !important;
+
+    // Behavior
+    cursor: pointer !important;
+    text-decoration: none !important;
+    display: inline-block !important;
+    text-align: center !important;
+    transition: $transition-focus !important;
+    position: relative !important;
+
+    // Visual indicator at bottom (subtle pattern)
+    background-image: linear-gradient(to bottom, transparent 90%, $color-border 90%) !important;
+    background-size: 100% 20px !important;
+    background-repeat: no-repeat !important;
+    background-position: bottom !important;
+
+    // Hover state - consistent yellow background
+    &:hover {
+        background-color: $color-focus !important;
+        color: $color-on-focus !important;
+        border-color: $color-border !important;
+    }
+
+    // Focus state - keyboard navigation
+    &:focus {
+        background-color: $color-focus !important;
+        color: $color-on-focus !important;
+        outline: $focus-outline-width solid $color-focus-ring !important;
+        outline-offset: $focus-outline-offset !important;
+        box-shadow: 0 0 0 $focus-outline-offset $color-focus-halo !important;
+    }
+
+    // Active state - click feedback
+    &:active {
+        background-color: $color-text !important;
+        color: $color-bg !important;
+    }
+
+    // Disabled state: flat grey fill and dashed border (black text stays 16:1), as for disabled fields. No stripes or
+    // opacity: Moodle disables a button right after it is clicked, and the pattern read as a visual glitch.
+    &:disabled,
+    &.disabled {
+        opacity: 1 !important;
+        cursor: not-allowed !important;
+        background-color: $color-surface !important;
+        background-image: none !important;
+        border-style: dashed !important;
+
+        &:hover,
+        &:focus {
+            background-color: $color-surface !important;
+            color: $color-text !important;
+            transform: none !important;
+        }
+    }
+}
+
+// Button variants (ensure consistent hover)
+.btn-primary,
+.btn-secondary,
+.btn-light,
+.btn-dark {
+    &:hover,
+    &:focus {
+        background-color: $color-focus !important;
+        color: $color-on-focus !important;
+        border-color: $color-border !important;
+    }
+}
+
+// Semantic buttons: a 3px frame in the colour of the meaning and a 6px pattern strip along the bottom edge, so the meaning
+// is not given by colour alone. Hover and focus fill the button with the colour. The pattern comes from the mixin's content.
+@mixin semantic-button($colour) {
+    border-color: $colour !important;
+    border-width: 3px !important;
+    position: relative !important;
+
+    &::before {
+        content: "" !important;
+        position: absolute !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        height: 6px !important;
+        @content;
+    }
+
+    &:hover,
+    &:focus {
+        background-color: $colour !important;
+        color: $color-bg !important;
+    }
+}
+
+.btn-success {
+    @include semantic-button($color-success) {
+        @include dots-pattern(var(--accessible-pattern-success), 3px, 8px);
+    }
+}
+
+.btn-danger {
+    @include semantic-button($color-error) {
+        @include diagonal-stripes(var(--accessible-pattern-error), 45deg, 4px);
+    }
+}
+
+.btn-warning {
+    @include semantic-button($color-warning) {
+        @include zigzag-pattern(var(--accessible-pattern-warning));
+    }
+}
+
+.btn-info {
+    @include semantic-button($color-info) {
+        @include grid-pattern(var(--accessible-pattern-info), 6px);
+    }
+}
+
+
+// --- Icon-only buttons ---
+// Help (?), reveal password (eye), section chevrons... The global button rule above forces display: inline-block and
+// large padding, which pushes the icon into a corner of the 44px target. Centre the icon with flex instead.
+// Editor (TinyMCE) toolbar buttons use .tox-tbtn, not .btn, so they are not affected.
+.btn.icon-no-margin,
+.btn.btn-icon {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: $spacing-xs !important;
+    line-height: 1 !important;
+    vertical-align: middle !important;
+
+    // Icons and their wrappers (the section toggle wraps the chevron in a padded span): no extra offset.
+    .icon,
+    .icon-no-margin {
+        margin: 0 !important;
+        line-height: 1 !important;
+    }
+}
+
+// Same for icon-only role="button" links / .btn (participants: edit enrolment, unenrol): Boost's .icon has a
+// margin-right that leaves the icon 8px left of the centre. Icons next to text keep their margin.
+.btn > .icon:only-child,
+[role="button"] > .icon:only-child {
+    margin: 0 !important;
+}
+
+// Bootstrap draws the X of .btn-close as a background image. The global button rule above replaces
+// background-image with a decorative gradient, which erased the X, so restore it. Full opacity: Bootstrap's 0.5
+// gives the black X too little contrast for AAA.
+.btn-close {
+    background-image: var(--bs-btn-close-bg) !important;
+    background-size: 1em auto !important;
+    background-position: center !important;
+    background-repeat: no-repeat !important;
+    padding: 0 !important;
+    opacity: 1 !important;
+}
+
+
+// ========================================
+// 8. FORM ELEMENTS
+// ========================================
+
+// --- Form Controls (Inputs, Textareas, Selects) ---
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="tel"],
+input[type="url"],
+input[type="search"],
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"],
+textarea,
+select {
+    // Size
+    min-height: $field-height !important;
+    padding: $spacing-md !important;
+
+    // Typography
+    font-size: $font-size-base !important;
+    line-height: 1.4 !important;
+
+    // Appearance
+    background-color: $color-bg !important;
+    color: $color-text !important;
+    border: $border-width solid $color-border !important;
+    border-radius: $border-radius !important;
+    transition: $transition-focus !important;
+
+    // Focus state
+    &:focus {
+        outline: $focus-outline-width solid $color-focus-ring !important;
+        outline-offset: $focus-outline-offset !important;
+        border-color: $color-border !important;
+        box-shadow: 0 0 0 $focus-outline-offset $color-focus-halo !important;
+    }
+
+    // Invalid state (with pattern for non-color distinction)
+    &:invalid,
+    &.is-invalid {
+        border-color: $color-error !important;
+        border-width: 3px !important;
+        background-image:
+            repeating-linear-gradient(
+                45deg,
+                transparent,
+                transparent 10px,
+                var(--accessible-invalid-stripe) 10px,
+                var(--accessible-invalid-stripe) 20px
+            ) !important;
+    }
+
+    // Placeholder text
+    &::placeholder {
+        color: $color-muted !important; // 7.5:1 on white (AAA); a solid colour, since opacity varies with the background.
+        opacity: 1 !important;
+        font-style: italic !important;
+    }
+}
+
+// Disabled fields: dashed border and grey fill (black text stays 16:1), never opacity or colour alone.
+input:disabled:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
+textarea:disabled,
+select:disabled {
+    background-color: $color-surface !important;
+    border-style: dashed !important;
+    opacity: 1 !important;
+    cursor: not-allowed !important;
+}
+
+// Specific adjustments for form-control class
+.form-control {
+    height: auto !important;
+    min-height: $field-height !important;
+    padding: 10px $spacing-md !important;
+    line-height: 1.4 !important;
+}
+
+// Textarea specific
+textarea {
+    resize: vertical !important;
+}
+
+// Firefox makes a select as wide as its longest option, and a flex row does not shrink the box holding it below that
+// width (Chromium does): the forum's discussion tools, the participants filter and the admin user list pushed the page
+// sideways at 200% text. A row with a select wraps first, so the select keeps its full text on a line of its own; the box
+// shrinks (and the select with it) only when even a whole line is too narrow.
+// (:has() cannot be nested, so two selectors.)
+.d-flex:has(> select),
+.d-flex:has(> * select) {
+    flex-wrap: wrap;
+    row-gap: $spacing-sm;
+}
+
+:is(.d-flex, .fitem, .felement) > :has(select) {
+    min-width: 0;
+    max-width: 100%;
+}
+
+// Select specific (vertical alignment fix)
+select,
+select.form-control {
+    height: auto !important;
+    min-height: $field-height !important;
+    line-height: 1.4 !important;
+    // Room for the dropdown arrow on the right (rem: it grows with the arrow). Vertically, half of what the field height
+    // leaves around one line of text, so a one-line choice sits in the middle (12px at 100%, as before).
+    padding:
+        max(12px, calc((#{$field-height} - 1.4em - 2 * #{$border-width}) / 2)) 2.5rem
+        max(12px, calc((#{$field-height} - 1.4em - 2 * #{$border-width}) / 2)) 0.75rem !important;
+    vertical-align: middle !important;
+
+    option {
+        padding: $spacing-sm $spacing-md !important;
+        line-height: 1.6 !important;
+    }
+}
+
+// Select popup: Chrome's native list highlights the hovered option in the system blue and can't be restyled, so where
+// the browser supports customizable selects (Chrome / Edge 135+) we use them: black on white, hover/focus inverts like
+// the menus, and the selected option is bold with a tick (not colour alone). Other browsers keep their native popup.
+@supports (appearance: base-select) {
+    select:not([multiple]):not([size]),
+    select:not([multiple]):not([size])::picker(select) {
+        appearance: base-select !important;
+    }
+    // The chevron is already drawn by Boost's background image; the built-in icon would wrap to a second line.
+    select:not([multiple]):not([size])::picker-icon {
+        display: none !important;
+    }
+    select:not([multiple]):not([size])::picker(select) {
+        background: $color-bg !important;
+        border: $border-width solid $color-border !important;
+        border-radius: $border-radius !important;
+        padding: 0 !important;
+    }
+    select:not([multiple]):not([size]) option {
+        min-height: $min-touch-target !important;
+        padding: $spacing-sm $spacing-md !important;
+        background: $color-bg !important;
+        color: $color-text !important;
+        font-size: $font-size-base !important;
+
+        outline: none !important; // the inversion is the focus cue; the global ring would double up on it
+        box-shadow: none !important;
+
+        &:hover,
+        &:focus,
+        &:focus-visible {
+            background: $color-text !important;
+            color: $color-bg !important;
+            text-decoration: underline !important;
+        }
+        &:checked {
+            font-weight: 700 !important;
+        }
+    }
+}
+
+// Autocomplete suggestions (tags, user pickers...): Boost paints the hovered / highlighted one blue; invert like the menus.
+.form-autocomplete-suggestions {
+    border: $border-width solid $color-border !important;
+    background-color: $color-bg !important;
+
+    li {
+        color: $color-text !important;
+        background-color: $color-bg !important;
+        min-height: $min-touch-target !important;
+        padding: $spacing-sm $spacing-md !important;
+
+        &:hover,
+        &:focus,
+        &[aria-selected="true"] {
+            background-color: $color-text !important;
+            border-color: $color-text !important;
+            text-decoration: underline !important;
+
+            &,
+            * {
+                color: $color-bg !important;
+            }
+        }
+    }
+}
+
+// --- Labels ---
+label {
+    font-size: $font-size-base !important;
+    font-weight: 600 !important;
+    margin-bottom: $spacing-sm !important;
+    display: block !important;
+    cursor: pointer !important;
+}
+
+// Static and file picker fields use a <span>/<p> instead of <label>: same weight as the other form labels.
+.col-form-label > span,
+.col-form-label > p {
+    font-weight: 600 !important;
+}
+
+// Checkbox labels stay inline so the help (?) button sits right after the text instead of on a line of its own.
+// Same for the bare <input><label> pairs of admin lists: the label sits beside its box, not under it.
+.form-check > label,
+input[type="checkbox"]:not([role="switch"]) + label,
+input[type="radio"] + label {
+    display: inline-block !important;
+    vertical-align: middle !important;
+    min-height: $min-touch-target !important;
+    padding: torem(8px) 0 !important; // 44px click row around the 28px box, in rem like the box
+}
+// The box lines up with the 44px click row of its label.
+.form-check .form-check-input {
+    margin-top: torem(8px) !important;
+}
+// Long labels wrap beside the box instead of dropping under it (box 28px + 8px margin + the space between them + slack).
+input[type="checkbox"]:not([role="switch"]) + label,
+input[type="radio"] + label {
+    max-width: calc(100% - #{torem(52px)}) !important;
+}
+
+// Form labels in the narrow label column: break between words, with a hyphen if a long word still doesn't fit,
+// instead of Boost's .word-break splitting it anywhere ("authenticatio / n").
+.col-form-label label.word-break {
+    word-break: normal !important;
+    overflow-wrap: normal !important;
+    hyphens: auto !important;
+}
+
+// Help (?) icon: Boost's teal .text-info is about 4.6:1 on white; black gives 21:1 (AAA).
+.btn-link .fa-circle-question.text-info {
+    color: $color-text !important;
+}
+
+// --- Fieldsets & Legends ---
+fieldset {
+    border: $border-width solid $color-border !important;
+    padding: $spacing-lg !important;
+    margin-bottom: $spacing-lg !important;
+}
+
+// A legend is the heading of its fieldset: larger and bold.
+legend {
+    font-size: $font-size-h4 !important;
+    font-weight: 700 !important;
+    padding: 0 $spacing-sm !important;
+}
+
+// Section headings of collapsible forms: with large text on a phone one long word ("Visualizzazione") is wider than the
+// heading and made the page scroll sideways. Hyphenate by syllables in the page language where the browser can, and
+// break the word only as a last resort. Never shrink the text the user enlarged.
+.collapsible .ftoggler h3 {
+    min-width: 0;
+    hyphens: auto;
+    overflow-wrap: anywhere;
+}
+
+// --- Checkboxes & Radio Buttons ---
+// One look for Boost's .form-check-input and for the bare native checkboxes of the admin pages: white box with a 2px
+// black border; checked = solid black with a white tick / dot (21:1; the shape also tells the state, not only colour).
+// Disabled = dashed border and grey fill, so it is told apart without relying on opacity. Edit-mode switch excluded.
+input[type="checkbox"]:not([role="switch"]),
+input[type="radio"] {
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    box-sizing: border-box !important;
+    width: $check-size !important;
+    height: $check-size !important;
+    min-width: $check-size !important;
+    min-height: $check-size !important;
+    margin-right: $spacing-sm !important;
+    vertical-align: middle !important;
+    cursor: pointer !important;
+    background-color: $color-bg !important;
+    background-image: none !important; // Moodle 5.3 forum subscribe is a .form-switch checkbox: no grey knob inside the box
+    background-repeat: no-repeat !important;
+    background-position: center !important;
+    background-size: 100% !important;
+    border: 2px solid $color-border !important;
+    opacity: 1 !important;
+
+    &:focus {
+        outline: $focus-outline-width solid $color-focus-ring !important;
+        outline-offset: $focus-outline-offset !important;
+    }
+
+    &:checked {
+        background-color: $color-text !important;
+        border-color: $color-border !important;
+    }
+
+    &:disabled {
+        background-color: $color-surface !important; // black text on it is 16:1
+        border-style: dashed !important;
+        cursor: not-allowed !important;
+    }
+    &:disabled:checked {
+        background-color: $color-strong-grey !important; // white tick on it is 7:1
+    }
+}
+input[type="checkbox"]:not([role="switch"]) {
+    border-radius: $border-radius !important;
+
+    &:checked {
+        background-image: svg-tick("%23fff") !important;
+    }
+}
+input[type="radio"] {
+    border-radius: 50% !important;
+
+    &:checked {
+        background-image: svg-dot(2, "%23fff") !important;
+    }
+}
+
+// Windows High Contrast / forced colors: the browser drops our background colours, so the white tick would sit on a
+// white box and checked would look unchecked. Hand the controls back to the native look, which uses system colours.
+@media (forced-colors: active) {
+    input[type="checkbox"]:not([role="switch"]),
+    input[type="checkbox"]:not([role="switch"]):checked,
+    input[type="radio"],
+    input[type="radio"]:checked {
+        appearance: auto !important;
+        -webkit-appearance: auto !important;
+        background-image: none !important;
+        border-style: revert !important;
+    }
+}
+
+// --- Validation Messages ---
+// (.invalid-feedback has its own box in section 17.)
+.error {
+    color: $color-error !important;
+    font-size: $font-size-base !important;
+    font-weight: 600 !important;
+    margin-top: $spacing-sm !important;
+    display: block !important;
+
+    &::before {
+        content: "⚠ " !important;
+        font-weight: 700 !important;
+    }
+}
+
+// Success text: bold and the same size as the error text, so it is not told apart by green alone.
+.valid-feedback,
+.success {
+    color: $color-success !important;
+    font-size: $font-size-base !important;
+    font-weight: 600 !important;
+    margin-top: $spacing-sm !important;
+    display: block !important;
+
+    &::before {
+        content: "✓ " !important;
+        font-weight: 700 !important;
+    }
+}
+
+// Help text under a field: base size, spaced from the field.
+.form-text,
+.help-block {
+    font-size: $font-size-base !important;
+    margin-top: $spacing-sm !important;
+    display: block !important;
+}
+
+
+// ========================================
+// 9. ALERTS & NOTIFICATIONS
+// ========================================
+
+// Layout: a pattern strip on the left (type by pattern), then the icon (type by shape) beside the text, then the text. The
+// icon used to sit on the pattern, which hid most of it. Widths are in rem so they follow the text size.
+$alert-strip-width: 3rem;
+$alert-icon-width: 2rem;
+
+// The alert box: white background, coloured frame (colour per variant below), room on the left for the pattern strip and the glyph.
+.alert,
+div.alert {
+    position: relative !important;
+    padding: $spacing-lg $spacing-lg $spacing-lg calc(#{$alert-strip-width} + #{$alert-icon-width} + 1.5rem) !important;
+    margin-bottom: $spacing-lg !important;
+    font-size: $font-size-base !important;
+    font-weight: 700 !important;
+    line-height: 1.6 !important;
+    border-width: 4px !important;
+    border-style: solid !important;
+    // Page colour, never a tint: Bootstrap fills each .alert-* with a pale version of its colour.
+    background-color: $color-bg !important;
+    color: $color-text !important;
+
+    // Left pattern area
+    &::before {
+        content: "" !important;
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        bottom: 0 !important;
+        width: $alert-strip-width !important;
+        border-right: 3px solid $color-border !important;
+    }
+
+    // Icon, beside the text on the page colour, level with the first line. No content here: each variant below sets its
+    // glyph, and an empty one in this more specific rule (div.alert::after) used to win, so no icon was ever shown.
+    &::after {
+        position: absolute !important;
+        left: calc(#{$alert-strip-width} + 0.75rem) !important;
+        top: $spacing-lg !important;
+        width: $alert-icon-width !important;
+        text-align: center !important;
+        font-size: 1.9rem !important;
+        font-weight: 900 !important;
+        line-height: 1.01 !important;
+    }
+
+    // Ensure text remains black
+    p,
+    span,
+    div,
+    a,
+    strong,
+    b,
+    em,
+    i {
+        color: $color-text !important;
+    }
+}
+
+// Type of the alert (Error, Success...) as a tooltip over the pattern and the icon: the span comes from the
+// core/notification_* template overrides (the visible type word before the message, .accessible-alerttype-label, is a sibling).
+.alert .accessible-alerttype {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: calc(#{$alert-strip-width} + #{$alert-icon-width} + 1rem);
+    z-index: 3;
+}
+
+// Dismiss button: top right corner of the alert, clear of the pattern area on the left. The right padding keeps the text
+// out from under the button (the padding above would otherwise let the first lines run beneath it).
+// Moodle's own alerts do not always carry .alert-dismissible, so match on the button.
+.alert-dismissible,
+.alert:has(> .btn-close) {
+    padding-right: calc(#{$min-touch-target} + 1.5rem) !important;
+}
+// Dismiss button of an alert: pinned to its top right corner.
+.alert-dismissible .btn-close,
+.alert > .btn-close {
+    position: absolute !important;
+    top: 5px !important;
+    right: 5px !important;
+}
+
+// Alert variants
+// One alert variant: coloured frame, a pattern strip on the left (the mixin's content), and a glyph in the colour of the
+// meaning. $italic-serif draws the glyph as an italic serif letter (the "i" of the information alert).
+@mixin alert-variant($colour, $glyph, $glyph-colour, $italic-serif: false) {
+    border-color: $colour !important;
+    border-left-width: 6px !important;
+
+    &::before {
+        @content;
+        background-color: $color-bg !important;
+    }
+
+    &::after {
+        content: $glyph !important;
+        color: $glyph-colour !important;
+        @if $italic-serif {
+            font-style: italic !important;
+            font-family: serif !important;
+        }
+    }
+}
+
+.alert-success {
+    @include alert-variant($color-success, "✓", var(--accessible-glyph-success)) {
+        @include dots-pattern(var(--accessible-pattern-success), 6px, 20px);
+    }
+}
+
+.alert-danger,
+.alert-error {
+    @include alert-variant($color-error, "✕", var(--accessible-glyph-error)) {
+        @include diagonal-stripes(var(--accessible-pattern-error), 45deg, 10px, 4px);
+    }
+}
+
+.alert-warning {
+    @include alert-variant($color-warning, "⚠", var(--accessible-glyph-warning)) {
+        // Horizontal bars: far calmer than the zigzag this used to be, and still different from the danger diagonals.
+        @include diagonal-stripes(var(--accessible-pattern-warning), 0deg, 10px, 4px);
+    }
+}
+
+.alert-info {
+    @include alert-variant($color-info, "i", var(--accessible-glyph-info), true) {
+        @include grid-pattern(var(--accessible-pattern-info), 12px, 3px);
+    }
+}
+
+
+// Badges ("Hidden for students", counters, labels): a coloured frame with black text, never a coloured fill, like the
+// alerts. White on Bootstrap's info teal was 4.58:1; black on white is 21:1 and the frame colours are >= 7:1.
+// [class] only raises the specificity above Bootstrap's .bg-* / .text-white utilities. The navbar notification
+// badge has its own rule in section 10.
+.badge[class] {
+    background-color: $color-bg !important;
+    color: $color-text !important;
+    border: $border-width solid $color-text;
+    font-weight: 700;
+}
+
+@each $name, $colour in (info: $color-info, danger: $color-error, success: $color-success, warning: $color-warning) {
+    .badge.bg-#{$name},
+    .badge.text-bg-#{$name} {
+        border-color: $colour;
+    }
+}
+
+// Core renders an empty activity badge (forum without unread posts, file without its type shown) with no style class;
+// the frame above made it an empty pill beside the activity name. Badges with content always carry badge-none or bg-*.
+.activitybadge.badge:not([class*="badge-"]):not([class*="bg-"]) {
+    display: none;
+}
+
+
+// ========================================
+// 10. NAVIGATION (Primary bar)
+// ========================================
+
+// --- Primary Navbar (Top - Black background) ---
+.navbar,
+nav.navbar {
+    background-color: $color-text !important;
+    border-bottom: 4px solid $color-bg !important;
+    min-height: torem(70px) !important;
+    padding: 0.5rem 1rem !important;
+    // At larger text sizes the items no longer fit in one row: wrap to a second row instead of running off the screen.
+    // accessible.js copies the real height to --accessible-navbar-height; Boost's fixed offsets are replaced below.
+    height: auto !important;
+}
+// Boost pads the notifications container by 12px top and bottom and relied on the fixed bar height to hide it.
+#nav-notification-popover-container {
+    padding: 0 !important;
+}
+// The bar's own row wraps too: at 200% text between tablet and small desktop widths the brand, menu and user side no longer
+// fit in one row (Bootstrap's breakpoints are in px and do not react to the text size) and the user menu and the
+// accessibility button ran off the screen.
+.navbar > .container-fluid {
+    flex-wrap: wrap;
+}
+// Boost gives the primary menu a fixed height (one row). When its items wrap onto two rows it must grow with them, or the
+// second row is drawn over the user menu below.
+.navbar .primary-navigation,
+.navbar .primary-navigation .moremenu,
+.secondary-navigation .moremenu {
+    height: auto !important;
+}
+// The bar's row is space-between, so when the user side wraps onto its own row the main menu was thrown to the right edge of
+// the first row. An auto end margin keeps it beside the brand.
+.navbar .primary-navigation {
+    margin-inline-end: auto;
+}
+// Only the user side (notifications, user menu, edit switch) wraps; the primary menu measures its own width.
+.navbar #usernavigation,
+.navbar .navbar-nav.ms-auto {
+    flex-wrap: wrap !important;
+    justify-content: flex-end !important;
+    height: auto !important;
+}
+
+// Narrow screens (37rem, 592px at the normal size; it follows the text size): burger and accessibility button stay together on the first row and the user
+// side takes the second row on its own, compressed so it never wraps again (a wrapped switch or a button under the burger
+// was the old result). The user name is cut with an ellipsis; the button keeps its full accessible name.
+@media (max-width: 37rem) {
+    .navbar > .container-fluid {
+        padding-inline: 0.25rem !important;
+    }
+
+    .navbar .navbar-toggler {
+        order: -2 !important;
+    }
+
+    .navbar .accessible-options-link {
+        order: -1 !important;
+    }
+
+    .navbar #usernavigation {
+        flex: 1 1 100% !important;
+        flex-wrap: nowrap !important;
+        justify-content: space-between !important;
+        min-width: 0;
+    }
+
+    // The thin divider before the edit switch would be spread out on its own.
+    .navbar #usernavigation .divider {
+        display: none;
+    }
+
+    .navbar #usernavigation .nav-link,
+    .navbar #usernavigation .popover-region-toggle {
+        padding-inline: 0.5rem !important;
+    }
+
+    .navbar #usernavigation .btn.dropdown-toggle {
+        padding-inline: 0.25rem !important;
+        white-space: nowrap;
+    }
+
+    .navbar .usermenu-container,
+    .navbar .usermenu,
+    .navbar .usermenu .dropdown,
+    .navbar #user-menu-toggle,
+    .navbar .userbutton {
+        min-width: 0;
+        max-width: 100%;
+    }
+
+}
+
+@media (max-width: 30rem) {
+    .navbar .user-fullname {
+        display: inline-block;
+        max-width: 5rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        vertical-align: bottom;
+    }
+}
+
+// Ensure container is transparent
+.navbar .container-fluid {
+    background-color: transparent !important;
+}
+
+// Brand/Logo
+.navbar-brand {
+    color: $color-bg !important;
+    font-size: 1.5rem !important;
+    font-weight: 700 !important;
+    text-decoration: underline !important;
+    padding: 0.5rem 1rem !important;
+
+    &:hover {
+        background-color: $color-bg !important;
+        color: $color-text !important;
+    }
+}
+
+// Primary navigation container
+.navbar .navbar-nav {
+    background-color: transparent !important;
+    align-items: center !important;
+}
+
+// Nav items take the black of the bar (no Boost fill).
+.navbar .navbar-nav .nav-item {
+    background-color: transparent !important;
+}
+
+// Primary navigation links
+.navbar .navbar-nav .nav-link {
+    color: $color-bg !important;
+    font-size: 1.3rem !important;
+    font-weight: 700 !important;
+    padding: 0.75rem 1.5rem !important;
+    background-color: transparent !important;
+    border: none !important;
+    text-decoration: none !important;
+
+    span,
+    * {
+        color: $color-bg !important;
+    }
+
+    // Hover - inverted colors
+    &:hover {
+        background-color: $color-bg !important;
+        color: $color-text !important;
+
+        span,
+        * {
+            color: $color-text !important;
+        }
+    }
+
+    // Focus state
+    &:focus {
+        background-color: $color-bg !important;
+        color: $color-text !important;
+        outline: $focus-outline-width solid $color-focus-ring !important; // follows the "thick focus" option
+        outline-offset: 4px !important;
+
+        span,
+        * {
+            color: $color-text !important;
+        }
+    }
+
+    // Active page indicator
+    &.active {
+        background-color: transparent !important;
+        font-weight: 900 !important;
+        border: none !important;
+        border-bottom: 5px solid $color-bg !important;
+        padding-bottom: 0.7rem !important;
+
+        span,
+        * {
+            color: $color-bg !important;
+        }
+
+        &:hover,
+        &:focus {
+            background-color: $color-bg !important;
+            color: $color-text !important;
+            border-bottom: 5px solid $color-text !important;
+
+            span,
+            * {
+                color: $color-text !important;
+            }
+        }
+    }
+}
+
+// Icons in navbar (notifications, messages)
+.navbar .icon,
+.navbar svg,
+.navbar .fa {
+    color: $color-bg !important;
+    fill: $color-bg !important;
+    width: torem(24px) !important;   // rem: they grow with the text size
+    height: torem(24px) !important;
+    max-width: torem(24px) !important;   // Boost caps .icon at 30px by 24px, which stopped the growth
+    max-height: torem(24px) !important;
+}
+
+// Accessibility options button, in the top bar and on the login page: a framed 44px icon.
+.navbar .accessible-options-link,
+#page-wrapper > .accessible-options-link {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-width: $min-touch-target !important;
+    min-height: $min-touch-target !important;
+    text-decoration: none !important;
+    font-size: 1.5rem !important;
+}
+
+// In the top bar: first in the markup (screen readers meet it first), shown at the far right.
+.navbar .accessible-options-link {
+    order: 1;
+    margin-left: $spacing-sm !important;
+    color: $color-bg !important;
+    background-color: transparent !important;
+    border: 2px solid $color-bg !important;
+
+    &:hover,
+    &:focus {
+        color: $color-text !important;
+        background-color: $color-bg !important;
+    }
+}
+
+// Login page: no navbar there, so the same button sits in the top right corner, black on white.
+#page-wrapper > .accessible-options-link {
+    position: absolute;
+    top: $spacing-sm;
+    right: $spacing-sm;
+    z-index: 2;
+    color: $color-text !important;
+    background-color: $color-bg !important;
+    border: 2px solid $color-text !important;
+
+    &:hover,
+    &:focus {
+        color: $color-bg !important;
+        background-color: $color-text !important;
+    }
+}
+
+// Icon containers and popover regions
+.navbar a.icon,
+.navbar [data-region="popover-region"],
+.navbar .popover-region-toggle {
+    background-color: transparent !important;
+    padding: 0.75rem !important;
+    border: none !important;
+    position: relative !important;
+
+    .icon,
+    svg {
+        color: $color-bg !important;
+        fill: $color-bg !important;
+    }
+
+    &:hover {
+        background-color: $color-bg !important;
+
+        .icon,
+        svg,
+        * {
+            color: $color-text !important;
+            fill: $color-text !important;
+        }
+    }
+}
+
+// The notifications (and messages) panel is a child of the black navbar, so it inherited the white icons and the
+// white-on-hover rules above: icons vanished on white as soon as the pointer left, and text turned link-blue. Inside the
+// panel everything is black on white, always, with a thick border and text as large as the page text.
+.navbar [data-region="popover-region"] .popover-region-container {
+    background-color: $color-bg !important;
+    border: 3px solid $color-text !important;
+
+    *,
+    *:hover,
+    a,
+    a:visited {
+        color: $color-text !important;
+        fill: $color-text !important;
+    }
+
+    .notification-message,
+    .content-item-body {
+        font-size: $font-size-base !important;
+    }
+
+    .timestamp,
+    .view-more {
+        font-size: 1rem !important;
+    }
+
+    .content-item-body {
+        margin-bottom: $spacing-sm !important;
+    }
+
+    .timestamp {
+        line-height: 1.5 !important;
+    }
+
+    // Hovered or focused item: black background (Boost's own hover), so white text. The black text above would vanish.
+    .content-item-container:hover,
+    .content-item-container:focus-within {
+        background-color: $color-text !important;
+
+        *,
+        a,
+        a:visited {
+            color: $color-bg !important;
+            fill: $color-bg !important;
+        }
+    }
+
+    // Boost pins "See full notification" over the bottom right corner of the item, on top of the time; with larger text
+    // they overlap. Put it on its own line under the time.
+    .view-more {
+        position: static !important;
+        display: block !important;
+        margin: $spacing-xs 0 !important;
+        text-align: right !important;
+    }
+}
+
+// Boost fixes the panel at 500px with a 25px header and a computed content height; with larger text the header grows,
+// the content and the "See all" link overflow the box and hang below it. Header, scrolling content and footer share the
+// height instead.
+.navbar [data-region="popover-region"]:not(.collapsed) .popover-region-container {
+    display: flex !important;
+    flex-direction: column !important;
+    height: auto !important;
+    // Never taller than the room under the bar (at 200% on 1024x768 16rem was more and "See all" ended off the screen).
+    min-height: min(16rem, calc(100vh - #{$navbar-height})) !important;
+
+    .popover-region-header-container {
+        height: auto !important;
+        line-height: normal !important;
+        flex: 0 0 auto;
+    }
+
+    .popover-region-content-container {
+        height: auto !important;
+        flex: 1 1 auto;
+        overflow-y: auto !important;
+    }
+
+    .popover-region-footer-container,
+    .see-all-link {
+        height: auto !important;
+        flex: 0 0 auto;
+    }
+
+    // Boost floats the title left and the buttons right on a 25px line: with larger text the title ran over the buttons.
+    // They share a wrapping row instead.
+    .popover-region-header-container {
+        display: flex !important;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: $spacing-xs;
+    }
+
+    .popover-region-header-text,
+    .popover-region-header-actions {
+        float: none !important;
+    }
+}
+
+// Boost's panel is 380px wide (fixed px, it did not grow with the text) and hangs to the left of its icon, so when the
+// user side of the bar wraps and the icon sits on the left the panel ran off the screen. In rem here, never wider than the
+// window, and hung from the right edge of the user side (under the icons) instead of from the icon itself.
+.navbar #usernavigation {
+    position: relative;
+}
+.navbar #usernavigation [data-region="popover-region"] {
+    position: static !important;
+}
+.navbar [data-region="popover-region"] .popover-region-container {
+    width: min(23.75rem, calc(100vw - 1rem)) !important;
+    top: 100% !important;
+    right: 0 !important;
+}
+
+// When the bar shows the burger (phones, and larger text up to Full HD screens), the icons sit on the left or in the
+// middle and the panel ran off the screen edge or, on phones, covered the bar and its own icon (Boost places it 46px from
+// the top). There it takes the whole width, right under the real bar, as tall as the window allows.
+@mixin popover-panel-full-width {
+    .navbar [data-region="popover-region"] .popover-region-container {
+        position: fixed !important;
+        top: #{$navbar-height} !important;
+        left: 0 !important;
+        right: 0 !important;
+        width: auto !important;
+        max-height: calc(100vh - #{$navbar-height}) !important;
+    }
+}
+
+@include media-breakpoint-down(md) {
+    @include popover-panel-full-width;
+}
+
+@each $percent, $width in (125: 77.5em, 150: 93em, 200: 124em) {
+    @media (max-width: ($width - 0.01em)) {
+        body.accessible-fontsize-#{$percent} {
+            @include popover-panel-full-width;
+        }
+    }
+}
+
+// Notification badges (red with white number)
+.navbar .badge,
+.navbar .count-container,
+.navbar [data-region="count-container"] {
+    background-color: $color-badge !important;
+    color: $color-bg !important;
+    font-weight: 900 !important;
+    font-size: 1rem !important;
+    padding: 0.3rem 0.5rem !important;
+    border: 3px solid $color-bg !important;
+    border-radius: 50% !important;
+    min-width: torem(24px) !important;
+    min-height: torem(24px) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    position: absolute !important;
+    top: 0 !important;
+    right: 0 !important;
+}
+
+
+// The badge number stays white on red when its button is hovered (the hover rule above turns everything inside the
+// button black, which on the red badge drops to ~2.9:1). Core hides the badge with .hidden when there is nothing
+// unread; the display: flex above must not bring a "0" back.
+.navbar a.icon:hover,
+.navbar [data-region="popover-region"]:hover,
+.navbar .popover-region-toggle:hover,
+.navbar .navbar-nav .nav-link:hover {
+    .badge,
+    .count-container,
+    [data-region="count-container"] {
+        &,
+        * {
+            color: $color-bg !important;
+        }
+    }
+}
+
+.navbar .count-container.hidden,
+.navbar [data-region="count-container"].hidden {
+    display: none !important;
+}
+
+// Hamburger button: same black/white inversion as the other navbar controls, and the same square as the accessibility
+// button next to it (Bootstrap's padding and line height made it taller).
+.navbar-toggler {
+    height: 2.75rem;
+    padding-block: 0 !important;
+    align-content: center;
+    background-color: transparent !important;
+    border: 2px solid $color-bg !important;
+    color: $color-bg !important;
+    // Pure white lines, thicker than Bootstrap's: its light-mode icon is dark grey at 75%, which after inverting read as a
+    // dim grey on the black bar. Inverted back to black on the white hover fill.
+    // Set on the icon itself: in dark mode Bootstrap writes its 55% white image there, which beats the custom property.
+    .navbar-toggler-icon {
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='%23fff' stroke-linecap='round' stroke-miterlimit='10' stroke-width='3' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e") !important;
+    }
+
+    &:hover,
+    &:focus {
+        background-color: $color-bg !important;
+        color: $color-text !important;
+
+        .navbar-toggler-icon {
+            filter: invert(1);
+        }
+    }
+}
+
+// Bootstrap's breakpoints ignore the theme's text size, so at 200% on a 1024 to 1600px screen the primary menu stayed in
+// the bar on two or three rows (the burger only shows below 768px) and the bar took up to half of the screen. With larger
+// text the bar switches to the burger (menu and site name in the primary drawer, as Boost does on phones) below the lg
+// breakpoint scaled by the text size, where the menu, the site name and the user side no longer fit on one row: 1240px at
+// 125%, 1488px at 150%, 1984px at 200%. The accessibility button then sits beside the burger. The queries measure the
+// screen in the browser's own em, which the text size does not change.
+@each $percent, $width in (125: 77.5em, 150: 93em, 200: 124em) {
+    @media (max-width: ($width - 0.01em)) {
+        body.accessible-fontsize-#{$percent} .navbar {
+            .navbar-toggler {
+                display: block !important;
+                order: -2 !important;
+            }
+
+            .accessible-options-link {
+                order: -1 !important;
+            }
+
+            .navbar-brand,
+            .primary-navigation,
+            > .container-fluid > .navbar-nav.d-md-flex {
+                display: none !important;
+            }
+        }
+    }
+}
+
+// Two rows when the bar shows the burger and its items no longer fit on one row (phones, and larger text below the sm
+// breakpoint scaled by the text size: 720px at 125%, 864px at 150%, 1152px at 200%). The user side used to take a row of
+// its own and the edit switch often a third. First row: burger, notifications, messages (and any other icon of the user side)
+// and the accessibility button on the right; second row: the user menu on the left, the edit switch (editors only) on the
+// right. Only the visual order changes: the focus order stays the order of the markup. #usernavigation lets its items
+// take part in the rows of the bar (display: contents; it is a plain div with no role) and an empty ::after breaks the row.
+@mixin navbar-two-rows {
+    .navbar > .container-fluid {
+        flex-wrap: wrap !important;
+
+        &::after {
+            content: "";
+            order: 5;
+            flex-basis: 100%;
+            height: 0;
+        }
+    }
+
+    .navbar #usernavigation {
+        display: contents !important;
+
+        > * {
+            order: 3 !important;
+        }
+
+        .popover-region-notifications {
+            order: 2 !important;
+        }
+
+        [data-region="popover-region-messages"] {
+            order: 2 !important;
+        }
+
+        .divider {
+            display: none !important;
+        }
+
+        .usermenu-container {
+            order: 6 !important;
+            margin-inline: 0 auto !important;
+            min-width: 0;
+        }
+
+        // The user name has most of the second row: instead of the 5rem cut of the 30rem rule above, it may use the row
+        // minus the room of the edit switch (an ellipsis only when it is longer than that).
+        .user-fullname {
+            max-width: calc(100vw - 10rem) !important;
+        }
+
+        .editmode-switch-form {
+            order: 7 !important;
+            margin-inline-start: auto !important;
+        }
+    }
+
+    .navbar .navbar-toggler {
+        order: 1 !important;
+    }
+
+    .navbar .accessible-options-link {
+        order: 4 !important;
+        margin-inline-start: auto !important;
+    }
+}
+
+@include media-breakpoint-down(md) {
+    @include navbar-two-rows;
+}
+
+@each $percent, $width in (125: 45em, 150: 54em, 200: 72em) {
+    @media (max-width: ($width - 0.01em)) {
+        body.accessible-fontsize-#{$percent} {
+            @include navbar-two-rows;
+        }
+    }
+}
+
+// Short screens and large text: when the top bar takes more than a quarter of the window, accessible.js adds
+// body.accessible-navbar-hidden as soon as the page is scrolled. The bar slides up out of the way and comes back at the
+// top of the page, or while the focus is inside it (keyboard users). The drawers, their buttons and the scroll padding
+// then start at the top of the window.
+nav.navbar.fixed-top {
+    transition: transform 0.3s;
+}
+body.accessible-navbar-hidden {
+    nav.navbar.fixed-top {
+        transform: translateY(-100%);
+    }
+
+    [data-region="drawer"],
+    [data-region="right-hand-drawer"].drawer,
+    .drawer.drawer-left,
+    .drawer.drawer-right {
+        top: 0 !important;
+        height: 100% !important;
+    }
+
+    .drawer-toggles .drawer-toggler {
+        top: 1rem !important;
+    }
+}
+html:has(body.accessible-navbar-hidden) {
+    scroll-padding-top: 1rem;
+}
+
+
+// ========================================
+// 11. DRAWERS
+// ========================================
+
+// Main menu drawer on phones: Boost's header has no side padding, so the site name touched the screen edge. Same inset
+// as the menu items below it.
+.drawer-primary .drawerheader {
+    padding-left: $spacing-lg !important;
+}
+
+// Course index (left) and blocks (right) drawers: below the top bar, white with a black edge.
+
+// Messages drawer: Boost's 320px did not grow with the text and, on phones, left a strip of page beside a narrow column.
+// 20rem (320px at the normal size), never wider than the window, and the whole width on phones. When hidden it is moved
+// out by its own width.
+[data-region="right-hand-drawer"].drawer {
+    width: min(20rem, 100vw) !important;
+
+    &.hidden {
+        right: calc(-1 * min(20rem, 100vw)) !important;
+    }
+}
+
+@include media-breakpoint-down(md) {
+    [data-region="right-hand-drawer"].drawer {
+        width: 100vw !important;
+
+        &.hidden {
+            right: -100vw !important;
+        }
+    }
+}
+
+// Drawers never wider than the screen (the block drawer is 22rem: 440px on a 375px phone with 125% text).
+.drawer.drawer-left,
+.drawer.drawer-right {
+    max-width: 100vw !important;
+}
+
+// Stacking: Boost puts the drawers above the bar (1031, 1035 on phones; the bar 1030), and every menu or panel that opens
+// from the bar (notifications, user menu, "More") is inside the bar, so an open block drawer covered it. Here the drawers
+// always start below the bar, so the bar can come first (below modals, 1050). The messages drawer, opened on purpose,
+// comes above the block drawer (it was 1021 on desktops, under it).
+nav.navbar.fixed-top {
+    z-index: 1040 !important;
+}
+[data-region="right-hand-drawer"].drawer {
+    z-index: 1036 !important;
+}
+// Boost shows the focused skip links fixed at the top at 1031, which used to be above the bar (1030) and was hidden under it
+// once the bar moved to 1040. Above everything while focused.
+.visually-hidden-focusable:focus,
+.visually-hidden-focusable:focus-within {
+    z-index: 1060 !important;
+}
+
+// The page and the drawers start below the fixed top bar. accessible.js publishes its real height as --accessible-navbar-height
+// (the bar grows to two rows at larger text sizes).
+#page.drawers {
+    margin-top: #{$navbar-height} !important;
+}
+[data-region="drawer"],
+[data-region="right-hand-drawer"].drawer,
+.drawer.drawer-left,
+.drawer.drawer-right {
+    top: #{$navbar-height} !important;
+    height: calc(100% - #{$navbar-height}) !important;
+}
+.drawer-toggles .drawer-toggler {
+    top: calc(#{$navbar-height} + 1rem) !important;
+}
+
+// Moodle 5.3 floats the drawers and their open buttons as cards next to the centred main column on standard and
+// limited-width pages (many :has() states, from lg up). This theme keeps the 5.2 behaviour on every page: full-height
+// drawers and buttons on the screen edges, so the buttons are always in the same place. Does nothing in 5.2.
+@include media-breakpoint-up(lg) {
+    .pagelayout-standard,
+    body.limitedwidth {
+        #page.drawers .main-inner {
+            margin-top: 0 !important;
+        }
+
+        .drawer.drawer-left,
+        .drawer.drawer-right {
+            z-index: $zindex-fixed + 1 !important;
+            max-height: none !important;
+            padding-bottom: 0 !important;
+            border-radius: 0 !important;
+            overflow: visible !important;
+            clip-path: none !important;
+        }
+
+        .drawer.drawer-left {
+            left: calc(-#{$drawer-left-width} - 10px) !important;
+            right: auto !important;
+            width: $drawer-left-width !important;
+            min-width: $drawer-left-width !important;
+            &.show {
+                left: 0 !important;
+            }
+        }
+
+        .drawer.drawer-right {
+            left: auto !important;
+            right: calc(-#{$drawer-right-width} - 10px) !important;
+            &.show {
+                right: 0 !important;
+            }
+        }
+
+        .drawer-toggles {
+            .drawer-left-toggle {
+                left: 0 !important;
+                right: auto !important;
+            }
+
+            .drawer-right-toggle {
+                left: auto !important;
+                right: 0 !important;
+            }
+        }
+    }
+}
+
+// Left drawer (course index): black edge on the side that faces the page.
+.drawer.drawer-left {
+    background-color: $color-bg !important;
+    border-right: 2px solid $color-text !important;
+}
+// Same for the blocks drawer on the right.
+.drawer.drawer-right {
+    background-color: $color-bg !important;
+    border-left: 2px solid $color-text !important;
+}
+
+
+// ========================================
+// 12. USER MENU
+// ========================================
+
+//
+// Structure:
+//   nav.navbar .usermenu
+//   ├── .dropdown-toggle     (navbar button - white text on black)
+//   │   ├── .user-fullname   (username)
+//   │   └── ::after          (chevron)
+//   └── .dropdown-menu       (dropdown - black text on white)
+//       └── .dropdown-item   (each option: hover/focus inverts colors)
+
+// --- Toggle button (sits inside the black navbar) ---
+nav.navbar .usermenu .dropdown-toggle,
+nav.navbar .usermenu a.btn.dropdown-toggle,
+#user-menu-toggle {
+    color: $color-bg !important;
+    background-color: transparent !important;
+    border: none !important;
+    font-size: 1.3rem !important;
+    font-weight: 700 !important;
+    min-height: $min-touch-target !important;
+    padding: $spacing-md $spacing-lg !important;
+
+    // Username and all child elements
+    .usertext,
+    .toggle-display,
+    .user-fullname,
+    .userbutton,
+    * {
+        color: $color-bg !important;
+        background-color: transparent !important;
+    }
+
+    // Chevron
+    &::after {
+        font-size: 1.2rem !important;
+        margin-left: 0.4rem !important;
+        vertical-align: middle !important;
+        position: relative !important;
+        top: -1px !important;
+        color: $color-bg !important;
+    }
+
+    // Hover: invert to white background / black text
+    &:hover {
+        background-color: $color-bg !important;
+        color: $color-text !important;
+
+        .usertext,
+        .toggle-display,
+        .user-fullname,
+        .userbutton,
+        * {
+            color: $color-text !important;
+        }
+
+        &::after {
+            color: $color-text !important;
+        }
+    }
+
+    // Focus: same inversion plus the theme's ring
+    &:focus-visible {
+        background-color: $color-bg !important;
+        color: $color-text !important;
+        outline: $focus-outline-width solid $color-focus-ring !important;
+        outline-offset: $focus-outline-offset !important;
+        box-shadow: none !important;
+
+        .usertext,
+        .toggle-display,
+        .user-fullname,
+        .userbutton,
+        * {
+            color: $color-text !important;
+        }
+
+        &::after {
+            color: $color-text !important;
+        }
+    }
+}
+
+// Moodle 5.3 adds the first name (aria-hidden) beside the full name from xl up: the same person twice. Show the full name only.
+nav.navbar .usermenu .userfirstname {
+    display: none !important;
+}
+
+// --- Dropdown menu panel ---
+nav.navbar .usermenu .dropdown-menu {
+    position: absolute !important;
+    top: 100% !important;
+    left: 0 !important;
+    z-index: 1060 !important;
+    background-color: $color-bg !important;
+    color: $color-text !important;
+    border: $border-width solid $color-text !important;
+    border-radius: 0 0 $border-radius $border-radius !important;
+    box-shadow: 0 4px 12px var(--accessible-shadow) !important;
+    // It opens under the bar, which grows with the text: never taller than the window below the bar, the rest scrolls
+    // inside the menu (with overflow visible the end of the menu ran off the screen and the wheel scrolled the page).
+    // No sideways scrollbar while the language submenu slides in.
+    max-height: calc(100vh - #{$navbar-height} - 1rem) !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    margin-top: 2px !important;
+
+    // --- Menu items ---
+    .dropdown-item,
+    a {
+        color: $color-text !important;
+        background-color: transparent !important;
+        font-size: $font-size-base !important;
+        font-weight: 600 !important;
+        padding: $spacing-lg $spacing-xl !important;
+        min-height: $min-touch-target !important;
+        display: block !important;
+        text-decoration: none !important;
+        border-bottom: 1px solid $color-divider !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+
+        &:last-child {
+            border-bottom: none !important;
+        }
+
+        &:hover {
+            color: $color-bg !important;
+            background-color: $color-text !important;
+            text-decoration: underline !important;
+            text-decoration-color: $color-bg !important;
+        }
+
+        &:focus-visible {
+            color: $color-bg !important;
+            background-color: $color-text !important;
+            outline: $focus-outline-width solid $color-focus-ring !important;
+            outline-offset: $focus-outline-offset !important;
+            box-shadow: none !important;
+        }
+    }
+}
+
+// --- Language menu in the user menu ---
+
+// Main menu: the "Language" item had Boost's small caret hanging 16px from the top. A chevron, vertically centred on the item.
+nav.navbar.fixed-top .usermenu .dropdown-menu .dropdown-item.carousel-navigation-link::after {
+    content: "\f054"; // fa-chevron-right
+    font-size: 1rem;
+    padding-top: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    line-height: 1;
+}
+
+// Right-to-left languages: the chevron points the other way.
+.dir-rtl nav.navbar.fixed-top .usermenu .dropdown-menu .dropdown-item.carousel-navigation-link::after {
+    content: "\f053"; // fa-chevron-left
+}
+
+// Sub-menu: the fixed width cut long names ("Español - Internacional (es)"). Less padding on the left, the tick moves to the
+// right end (same size as section 13, in the room reserved by the right padding) and long names wrap instead of being cut.
+nav.navbar.fixed-top .usermenu .dropdown-menu .submenu .items .dropdown-item {
+    padding: $spacing-lg 2.5rem $spacing-lg 1rem !important;
+    white-space: normal;
+    position: relative;
+
+    &[aria-current="true"]::before {
+        left: auto !important;
+        right: 0.75rem;
+        padding-left: 0;
+        font-size: 1.25rem;
+        font-weight: 900;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+}
+
+// "Language selector" title to the right, opposite the back button.
+nav.navbar.fixed-top .usermenu .dropdown-menu .submenu .header {
+    display: flex;
+    align-items: center;
+
+    > span {
+        margin-inline-start: auto;
+        text-align: end;
+    }
+}
+
+
+// ========================================
+// 13. DROPDOWNS AND LIST ITEMS
+// ========================================
+
+// Kept after the user menu and before the secondary navigation on purpose: these rules out-rank the navbar link rules, and the
+// secondary navigation rules below have to come after them.
+
+// --- All other dropdowns (More menu, settings/action menus) ---
+// Black on white panel; hover/focus inverts like the user menu instead of Bootstrap's blue. The selectors out-rank the
+// navbar link rules, which would otherwise paint More menu items white on white.
+.dropdown-menu {
+    --bs-dropdown-bg: #{$color-bg};
+    --bs-dropdown-color: #{$color-text};
+    --bs-dropdown-link-color: #{$color-text};
+    --bs-dropdown-link-hover-color: #{$color-bg};
+    --bs-dropdown-link-hover-bg: #{$color-text};
+    --bs-dropdown-link-active-color: #{$color-bg};
+    --bs-dropdown-link-active-bg: #{$color-text};
+    border: $border-width solid $color-text !important;
+    background-color: $color-bg !important;
+
+    // Colours and the hover/focus inversion of the items are in the overrides block below.
+    .dropdown-item * {
+        background-color: transparent;
+        text-decoration: none !important;
+    }
+
+    .dropdown-item {
+        &.active {
+            color: $color-bg !important;
+            background-color: $color-text !important;
+            text-decoration: underline !important;
+
+            * {
+                color: $color-bg !important;
+            }
+        }
+
+        &:focus-visible {
+            outline: $focus-outline-width solid $color-focus-ring !important;
+            outline-offset: calc(-1 * #{$focus-outline-width}) !important;
+        }
+    }
+}
+
+
+// Admin settings pages: the row of the "Save changes" button has Bootstrap's negative gutter, wider than the page's
+// side padding on phones, so the page scrolled sideways by a few pixels (Boost too).
+.settingsform > .row {
+    margin-left: 0;
+    margin-right: 0;
+}
+
+// --- Overrides for Moodle's More menu (desktop and drawer), settings pages and the navbar toggler ---
+// Boost paints .moremenu items blue on hover/current, and its check icon (::before) is absolutely positioned over the
+// item text. Items in the primary More menu are .nav-link, so they need to out-rank the navbar link rules too.
+.dropdown-menu .dropdown-item,
+.navbar .navbar-nav .dropdown-menu .nav-link,
+.moremenu .dropdown-menu .dropdown-item,
+.moremenu .dropdown-menu .nav-link {
+    &,
+    * {
+        color: $color-text !important;
+    }
+    background-color: $color-bg !important;
+    text-decoration: none !important;
+    position: relative;
+
+    &[aria-current="true"],
+    &.active {
+        font-weight: 700 !important;
+        padding-left: 2rem !important;
+
+        &::before {
+            left: 0.6rem !important;
+            top: 50% !important;
+            transform: translateY(-50%);
+            color: inherit !important;
+        }
+    }
+
+    &:hover,
+    &:focus,
+    &:focus-visible,
+    &:focus-within,
+    &:active {
+        background-color: $color-text !important;
+        text-decoration: underline !important;
+
+        &,
+        * {
+            color: $color-bg !important;
+        }
+    }
+}
+
+// Site name: black on its white hover/focus fill. Kept here, after the dropdown overrides (rule order).
+.navbar-brand:hover,
+.navbar-brand:focus {
+    &,
+    * {
+        color: $color-text !important;
+    }
+}
+
+// Main menu inside the burger drawer: like the bar's items, no underline (the current one is the black row).
+#theme_boost-drawers-primary .list-group-item-action {
+    text-decoration: none !important;
+}
+
+// Drawer list items: Boost highlights them blue. (Autocomplete suggestions get the same inversion in section 8.)
+.list-group-item-action {
+    &:hover,
+    &:focus,
+    &[aria-selected="true"],
+    &.active {
+        background-color: $color-text !important;
+        border-color: $color-text !important;
+        color: $color-bg !important;
+
+        &,
+        * {
+            color: $color-bg !important;
+        }
+
+        // Buttons inside the row keep their white fill, so their icons and text stay black (else white on white).
+        .btn,
+        .btn *,
+        .action-icon,
+        .action-icon *,
+        button,
+        button *,
+        [role="button"],
+        [role="button"] * {
+            color: $color-text !important;
+        }
+    }
+}
+
+// --- Selected option in dropdown menus ---
+
+// Boost marks the chosen option with a 0.7rem tick; too small to find at 30% vision. Bigger, bold, and the text gets
+// room for it (all in rem, so it grows with the text size). The bold text of the item still says it too: no colour needed.
+.dropdown-menu:has(.dropdown-item-active) .dropdown-item,
+.dropdown-item[aria-current="true"],
+.dropdown-item[aria-selected="true"] {
+    padding-left: 2.5rem !important;
+}
+
+// The tick of the selected item (Moodle draws it with ::before) sits in the room reserved on the left.
+.dropdown-item[aria-current="true"],
+.dropdown-item[aria-selected="true"] {
+    &::before {
+        left: 0.6rem;
+        font-size: 1.25rem;
+        font-weight: 900;
+    }
+}
+
+
+// ========================================
+// 14. SECONDARY NAVIGATION AND NAVBAR LINKS
+// ========================================
+
+// Secondary nav uses theme standard colors, not browser defaults
+.secondary-navigation,
+.secondarynavigation,
+.nav.nav-tabs,
+.nav-tabs {
+    background-color: $color-bg !important;
+
+    .nav-item .nav-link {
+        color: $color-text !important;
+        font-weight: 600 !important;
+        border-bottom: 3px solid transparent !important;
+        text-decoration: none !important;
+
+        &:hover {
+            background-color: $color-focus !important;
+            color: $color-on-focus !important;
+            border-bottom-color: $color-text !important;
+        }
+
+        &:focus-visible {
+            outline: $focus-outline-width solid $color-focus-ring !important;
+            outline-offset: $focus-outline-offset !important;
+        }
+
+        &.active {
+            color: $color-text !important;
+            font-weight: 700 !important;
+            border-bottom: 4px solid $color-text !important;
+            background-color: transparent !important;
+        }
+    }
+}
+
+// --- Navbar links: visited state override ---
+
+// Prevent visited-link purple on site name and navbar links
+.navbar-brand,
+.navbar a,
+.navbar .nav-link {
+    &:visited {
+        color: $color-bg !important;
+    }
+}
+
+// A visited brand must still turn black on its white hover/focus fill (the rule above would leave white on white).
+.navbar .navbar-brand:visited:hover,
+.navbar .navbar-brand:visited:focus {
+    color: $color-text !important;
+}
+
+// --- Secondary menu: labels on one line ---
+
+// The activity's secondary menu wraps onto more rows like the main menu (its box grows, see above): forced onto one row it ran
+// past the screen edge in narrow windows, because Moodle's "More" button only reacts to a menu that wraps and the box here
+// grows with it. A tab never shrinks, or "Question bank" broke in two inside its tab; a label breaks only when it is wider
+// than the whole row (a phone at 200% text: "Calificación avanzada" pushed the page sideways).
+.secondary-navigation .moremenu .more-nav .nav-item {
+    flex-shrink: 0;
+    max-width: 100%;
+}
+
+
+// ========================================
+// 15. FOCUS INDICATORS - Global override
+// ========================================
+
+// Ensure all interactive elements use the theme black ring with white halo,
+// never the browser default blue
+:focus-visible {
+    outline: $focus-outline-width solid $color-focus-ring !important;
+    outline-offset: $focus-outline-offset !important;
+}
+
+// Bootstrap overrides focus with box-shadow - reset it
+.btn:focus,
+.form-control:focus,
+.nav-link:focus,
+a:focus {
+    box-shadow: 0 0 0 $focus-outline-offset $color-focus-halo !important;
+}
+
+// Bootstrap's primary blue on icons (the favourite star of a conversation): the theme draws icons in the text colour.
+.text-primary > .icon,
+.icon.text-primary {
+    color: $color-text !important;
+}
+
+// A modal takes the focus when it opens: Boost draws a blue (primary colour) shadow round its content. The theme ring
+// and halo instead.
+.modal-dialog[tabindex="0"]:focus .modal-content,
+.modal-dialog[tabindex="0"].focus .modal-content {
+    outline: $focus-outline-width solid $color-focus-ring !important;
+    outline-offset: $focus-outline-offset !important;
+    box-shadow: 0 0 0 $focus-outline-offset $color-focus-halo !important;
+}
+
+
+// ========================================
+// 16. FORMS: REQUIRED FIELD ASTERISK
+// ========================================
+
+// Part of the forms (section 8), kept after the global focus rules on purpose: the order decides which rule wins.
+
+// The red asterisk that marks a required field (label, addon and the legend under the form).
+@mixin required-asterisk {
+    content: "*" !important;
+    font-size: 1.8rem !important;
+    font-weight: 900 !important;
+    color: $color-error !important;
+}
+
+// Step 1: Hide ONLY the required div (title="Required"), not the help button
+.form-label-addon > .text-danger {
+    display: inline-flex !important;    // Keep in flow for ::before
+    font-size: 0 !important;            // Hide text content
+    width: auto !important;
+    height: auto !important;
+    background: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    vertical-align: middle !important;
+
+    // Hide the FA icon inside
+    i.fa-circle-exclamation,
+    i.icon {
+        display: none !important;
+    }
+
+    // Replace with plain red asterisk
+    &::before {
+        @include required-asterisk;
+        display: inline !important;
+        line-height: 1 !important;
+        font-family: inherit !important;
+        margin-right: 0.3rem !important;
+        vertical-align: middle !important;
+        background: none !important;
+        border: none !important;
+        border-radius: 0 !important;
+        width: auto !important;
+        height: auto !important;
+        padding: 0 !important;
+    }
+}
+
+// --- Suppress label::after on ALL labels ---
+label::after {
+    content: "" !important;
+}
+
+// --- Asterisk ONLY on required labels ---
+// .text-danger inside .form-label-addon only exists on required fields
+label:has(.form-label-addon > .text-danger)::after {
+    @include required-asterisk;
+    margin-left: 0.4rem !important;
+    vertical-align: middle !important;
+}
+
+// --- Required footer description ---
+.fdescription.required {
+    i.icon.fa-circle-exclamation.text-danger {
+        display: none !important;
+    }
+
+    // Same red asterisk as the required labels, so the legend explains the mark it refers to.
+    &::before {
+        @include required-asterisk;
+        line-height: 1 !important;
+        margin-right: 0.4rem !important;
+        vertical-align: middle !important;
+    }
+}
+
+
+// ========================================
+// 17. FORMS: VALIDATION FEEDBACK VISIBILITY
+// ========================================
+
+// Part of the forms (section 8), kept after the global focus rules on purpose: the ring of an invalid field must beat
+// .form-control:focus.
+
+// Hidden by default
+.invalid-feedback,
+.form-control-feedback {
+    display: none !important;
+    height: 0 !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    background: none !important;
+}
+
+// Shown only when Bootstrap adds .d-block or input has .is-invalid
+.invalid-feedback.d-block,
+.form-control-feedback.d-block,
+.is-invalid ~ .invalid-feedback,
+.is-invalid ~ .form-control-feedback,
+.was-validated .form-control:invalid ~ .invalid-feedback,
+.was-validated .form-control:invalid ~ .form-control-feedback {
+    display: block !important;
+    height: auto !important;
+    position: relative !important;
+    background-color: $color-bg !important;
+    padding: 12px 16px 12px 55px !important;
+    margin-top: 8px !important;
+    font-size: 1.3rem !important;
+    font-weight: 700 !important;
+    color: $color-error-text !important;
+    border: $border-width solid $color-error !important; // Coloured frame, no fill (design rule).
+    border-left-width: 5px !important;
+    border-radius: $border-radius !important;
+
+    // Custom error icon via Font Awesome
+    &::before {
+        content: "\f06a" !important;
+        font-family: "Font Awesome 6 Free" !important;
+        font-weight: 900 !important;
+        display: block !important;
+        position: absolute !important;
+        left: 15px !important;
+        top: 50% !important;
+        transform: translateY(-50%) !important;
+        font-size: 2rem !important;
+        color: $color-error !important;
+        line-height: 1 !important;
+    }
+}
+
+// Error input styling
+.form-control.is-invalid,
+.was-validated .form-control:invalid {
+    border: 4px solid $color-error !important;
+    background-color: $color-bg !important;
+    box-shadow: 0 0 0 4px var(--accessible-invalid-ring) !important;
+}
+
+
+// ========================================
+// 18. COURSE INDEX, COURSE PAGE AND COLLAPSIBLE SECTIONS
+// ========================================
+
+// "Expand all / Collapse all" above collapsible forms: keep its button off the first section's frame.
+.collapsible-actions {
+    margin-bottom: $spacing-md !important;
+}
+
+// Course index (left drawer): white like the rest of the theme with a black edge; item names wrap instead of being cut
+// with "..." (Moodle's text-truncate); text as large as the page text (Boost shrinks it to 0.875); the section chevrons
+// are real targets with a readable icon (Boost draws them at 10px).
+.courseindex {
+    .courseindex-link {
+        font-size: $font-size-base !important;
+    }
+
+    // Black like the other menus; the underline already says they are links.
+    a,
+    a:visited,
+    .courseindex-link,
+    .courseindex-chevron {
+        color: $color-text !important;
+    }
+
+    .text-truncate {
+        white-space: normal !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+        overflow-wrap: anywhere;
+    }
+
+    .courseindex-section-title {
+        align-items: center !important;
+    }
+
+    // Hover and keyboard focus: black background with white text, like the menus. The current page is told apart by a
+    // grey background, a thick black bar on the left and bold text, so it does not depend on colour.
+    .courseindex-item {
+        border-left: 4px solid transparent !important;
+    }
+
+    .pageitem {
+        background-color: $color-surface !important;
+        border-left-color: $color-text !important;
+        font-weight: 700 !important;
+
+        *,
+        a {
+            color: $color-text !important;
+        }
+    }
+
+    .courseindex-item:hover,
+    .courseindex-item:focus-within {
+        background-color: $color-text !important;
+
+        *,
+        a,
+        a:visited {
+            color: $color-bg !important;
+            fill: $color-bg !important;
+        }
+    }
+
+    .courseindex-chevron {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        min-width: $min-touch-target !important;
+        min-height: $min-touch-target !important;
+        padding: 0 !important;
+
+        .icon {
+            width: 1.25rem !important;
+            height: 1rem !important;
+            font-size: 1rem !important;
+            margin: 0 !important;
+        }
+    }
+}
+
+// Course page: section cards get the same thick black frame as every other card (Boost: 1px light grey), and the section
+// titles and activity names are black like the rest of the menus; the underline already marks them as links.
+.course-content {
+    .section-item {
+        border: 2px solid $color-text !important;
+    }
+
+    a.aalink,
+    .sectionname a,
+    [data-for="section_title"] a,
+    .section-item h3 a {
+        color: $color-text !important;
+    }
+}
+
+// Course index header: button back to the course (activities only). The header may grow with larger text.
+.drawerheader {
+    height: auto !important;
+    min-height: $min-touch-target;
+    align-items: flex-start !important;
+
+    .drawerheading {
+        min-width: 0;
+    }
+
+    #courseindexdrawerheading {
+        overflow: visible !important;
+        min-width: 0;
+
+        // Arrow + the text "Back to the course". Black in every state: the global a:visited rule would make it purple.
+        .courseindex-link,
+        .courseindex-link:visited {
+            display: inline-flex !important;
+            align-items: center;
+            gap: 0.5rem;
+            color: $color-text !important;
+            // The text wraps inside the space the close button leaves (it is longer than one word and the drawer is narrow). At
+            // least as tall as the expand/collapse and close buttons next to it (the global button padding made it 55px).
+            white-space: normal !important;
+            text-align: start;
+            max-width: 100%;
+            height: auto !important;
+            min-height: $min-touch-target !important;
+            padding-top: 0.25rem !important;
+            padding-bottom: 0.25rem !important;
+        }
+    }
+}
+
+// Course index close button (moved first in the header by accessible.js): exactly where the open button is, so the drawer
+// opens and closes without moving the pointer. Same offsets as the open button: 1rem from the top of the drawer (theme,
+// .drawer-toggles) and 16px from the screen edge (Boost's .drawer-toggler .btn margin, fixed in px).
+#theme_boost-drawers-courseindex .drawerheader {
+    justify-content: flex-start !important;
+    gap: 0.5rem;
+
+    > .drawertoggle {
+        flex: none;
+        margin: 1rem 0 0 16px !important;
+    }
+
+    .drawerheading {
+        flex: 1 1 auto;
+        margin-top: 1rem;
+    }
+
+    .draweractions {
+        margin-top: 1rem;
+        margin-inline-start: auto;
+    }
+}
+
+// Courseindex and course/profile section chevrons
+// Keep chevrons properly sized and vertically aligned
+.courseindex .chevron,
+.courseindex [data-action="collapse"],
+.courseindex [data-action="expand"],
+[data-action="toggle-collapse"] .icon,
+.fcontainer .collapsible-actions .btn .icon {
+    width: torem(24px) !important;
+    height: torem(24px) !important;
+    min-width: torem(24px) !important;
+    min-height: torem(24px) !important;
+    font-size: 1.2rem !important;
+    vertical-align: middle !important;
+    flex-shrink: 0 !important;
+}
+
+// Prevent chevron from inheriting displaced position
+.courseindex svg.icon,
+.courseindex .icon svg {
+    width: torem(24px) !important;
+    height: torem(24px) !important;
+    vertical-align: middle !important;
+}
+
+// Expand all / Collapse all (forms, and the course page's .section-collapsemenu): an icon reinforces the action (the text stays;
+// screen readers use aria-expanded).
+// Moodle 5.3 draws its own icon in the course page button (an <i class="icon">), so ours is only added where it has none
+// (forms, and the course page in 5.2) and uses the same two arrows, so the button looks the same everywhere.
+.collapsemenu,
+.section-collapsemenu {
+    .expandall:not(:has(.icon))::before,
+    .collapseall:not(:has(.icon))::before {
+        font-family: "Font Awesome 6 Free" !important;
+        font-weight: 900 !important;
+        margin-right: $spacing-sm !important;
+    }
+    // The icons of Moodle 5.3's course page button: arrows out (Expand all) and arrows in (Collapse all).
+    .expandall:not(:has(.icon))::before {
+        content: "\f424"; // up-right-and-down-left-from-center
+    }
+    .collapseall:not(:has(.icon))::before {
+        content: "\f422"; // down-left-and-up-right-to-center
+    }
+}
+
+
+// ========================================
+// 19. TINYMCE (toolbar, status bar, frame)
+// ========================================
+
+// Toolbar buttons: black text/icons, never purple
+.tox-toolbar button,
+.tox-toolbar__group button,
+.tox .tox-tbtn {
+    color: $color-text !important;
+    background-color: $color-bg !important;
+    border-color: $color-border !important;
+
+    svg,
+    .tox-icon {
+        fill: $color-text !important;
+        color: $color-text !important;
+    }
+
+    &:hover {
+        background-color: $color-focus !important;
+        color: $color-on-focus !important;
+    }
+
+    &:focus-visible {
+        outline: $focus-outline-width solid $color-focus-ring !important;
+        outline-offset: $focus-outline-offset !important;
+    }
+}
+
+
+// Centre icons and labels. TinyMCE's own skin centres them with display: flex and no padding, but the global
+// button rule (section 7) overrides that with display: inline-block and large padding, which pushes the content
+// into a corner. Restore the flex centring; min-width/min-height from section 7 keep the 44px touch target.
+.tox .tox-tbtn,
+.tox .tox-mbtn {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    line-height: 1 !important;
+}
+
+.tox .tox-tbtn {
+    padding: 0 !important;
+}
+
+// Menu buttons (Edit, View, Insert...) keep a little horizontal room around the label.
+.tox .tox-mbtn {
+    padding: 0 $spacing-sm !important;
+}
+
+// Disabled buttons (Undo/Redo before any edit, Outdent...): the rule above made them look like the enabled ones. Same
+// cue as the other disabled controls: quiet grey fill and a dashed border, not only grey text. TinyMCE marks them with
+// aria-disabled and .tox-tbtn--disabled; the hover fill is cancelled so they do not look clickable.
+.tox .tox-tbtn[aria-disabled="true"],
+.tox .tox-tbtn--disabled,
+.tox .tox-mbtn[aria-disabled="true"],
+.tox .tox-mbtn--disabled {
+    background-color: $color-surface !important;
+    border-style: dashed !important;
+    cursor: not-allowed !important;
+
+    &:hover {
+        background-color: $color-surface !important;
+        color: $color-text !important;
+    }
+}
+
+// Status bar (element path, word count): the global button rule gives its buttons a 44px touch target, taller than
+// TinyMCE's fixed 25px status bar, so they were clipped at the bottom of the editor. Let the bar grow to fit them.
+.tox .tox-statusbar {
+    height: auto !important;
+    min-height: calc(#{$min-touch-target} + 2 * #{$spacing-xs}) !important;
+    padding-top: $spacing-xs !important;
+    padding-bottom: $spacing-xs !important;
+    align-items: center !important;
+}
+
+// Its inner containers are sized for 16px text; let them take the buttons' height so nothing overflows the bar.
+.tox .tox-statusbar__text-container,
+.tox .tox-statusbar__path,
+.tox .tox-statusbar__right-container {
+    height: auto !important;
+    min-height: $min-touch-target !important;
+    align-items: center !important;
+}
+
+// Path and word count of the status bar: centred in the taller bar.
+.tox .tox-statusbar__path-item,
+.tox .tox-statusbar__wordcount {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    line-height: 1 !important;
+}
+
+// The large toolbar and status bar buttons take space from the editing area: give the editor more height.
+// min-height (not height) so the resize handle can still make it taller.
+.tox.tox-tinymce:not(.tox-tinymce-inline):not(.tox-fullscreen) {
+    min-height: 32rem !important;
+}
+
+// TinyMCE's own frame is 2px #eee (1.15:1); use the same frame as the other form fields (WCAG 1.4.11 needs 3:1).
+.tox.tox-tinymce {
+    border: $border-width solid $color-border !important;
+    border-radius: $border-radius !important;
+
+    // Inner separators (toolbar / editing area / status bar): thin black lines instead of TinyMCE's grey and shadow.
+    .tox-editor-header {
+        box-shadow: none !important;
+        border-bottom: 1px solid $color-border !important;
+        padding-bottom: 0 !important;
+    }
+    .tox-toolbar,
+    .tox-toolbar__primary,
+    .tox-toolbar-overlord {
+        background-image: none !important;
+    }
+    .tox-statusbar {
+        border-top: 1px solid $color-border !important;
+    }
+    // TinyMCE's skin paints these white; follow the page palette.
+    .tox-editor-container,
+    .tox-editor-header,
+    .tox-menubar,
+    .tox-toolbar,
+    .tox-toolbar__primary,
+    .tox-toolbar-overlord,
+    .tox-statusbar,
+    .tox-sidebar-wrap {
+        background-color: $color-bg !important;
+    }
+    .tox-statusbar,
+    .tox-statusbar a,
+    .tox-statusbar__path-item,
+    .tox-statusbar__wordcount,
+    .tox-mbtn {
+        color: $color-text !important;
+    }
+}
+
+
+// ========================================
+// 20. EDIT MODE TOGGLE
+// ========================================
+
+// Edit mode switch on the always-black top bar.
+.editmode-switch-form {
+    // Bootstrap's .input-group wraps; at tablet widths "Edit mode: Off" broke onto two lines and spilled out of the navbar.
+    .input-group {
+        flex-wrap: nowrap;
+        align-items: center;
+    }
+
+    // Label always visible (inactive and active state)
+    label[for*="editingswitch"] {
+        color: $white !important;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    // Boost hides the label below md; our larger navbar text runs out of room up to lg, so hide it there too.
+    // The switch keeps its accessible name, and its state is still shown by the knob position, not colour.
+    @include media-breakpoint-down(lg) {
+        label[for*="editingswitch"] {
+            @include visually-hidden();
+        }
+    }
+
+    // At 200% text even two rows cannot hold the label, so hide it there too (same trade-off as above).
+    :root:has(body.accessible-fontsize-200) & label[for*="editingswitch"] {
+        @include visually-hidden();
+    }
+
+    // Active state: when the checkbox is checked
+    .form-check-input:checked ~ label,
+    input[type="checkbox"]:checked + label {
+        color: $white !important;
+    }
+
+    // The visual toggle (the switch itself) with good contrast
+    // The top bar is black in every mode. Off: white track with a black knob on the left. On: black track framed in white
+    // with a white knob on the right. Bootstrap's pale grey knob on a white track was hard to see. The knob position and
+    // the frame (not only the colour) tell the state; the label also says "Off"/"On" wherever it is shown.
+    // Bootstrap pulls the switch left with em offsets (padding of the wrapper, negative margin of the input), which no
+    // longer cancel out at the bigger size and put the switch over the label: place it in the normal flow instead.
+    .form-check.form-switch {
+        padding-left: 0;
+        min-height: 0;
+        margin-bottom: 0;
+        display: flex;
+        align-items: center;
+    }
+
+    .form-check-input[role="switch"] {
+        margin-left: 0;
+        margin-top: 0 !important; // the form-control rules (and Bootstrap's .25em) put the switch below the middle of the label
+        float: none;
+        // Bootstrap sizes the switch in em (width 2em, height 1em): a bigger font-size makes it bigger, in proportion.
+        font-size: 1.75rem;
+        background-color: $white !important;
+        border: 2px solid $white !important;
+        background-image: svg-dot(3, "%23000") !important;
+
+        &:checked {
+            background-color: $black !important;
+            background-image: svg-dot(3, "%23fff") !important;
+        }
+    }
+
+    .form-check-input:focus {
+        box-shadow: 0 0 0 3px var(--accessible-switch-halo); // visible focus, WCAG 2.1
+    }
+}
+
+
+// ========================================
+// 21. PAGE FOOTER
+// ========================================
+
+// theme_accessible/footer replaces Boost's floating "?" popover: the footer links are always visible at the end of
+// the page. White background, black text, a plain top rule to separate it from the content.
+#page-footer.accessible-footer {
+    background-color: $color-bg !important;
+    color: $color-text !important;
+    border-top: $border-width solid $color-border !important;
+    margin-top: $spacing-xl !important;
+    padding: $spacing-lg 0 !important;
+
+    .footer-section {
+        padding: $spacing-sm 0 !important;
+
+        & + .footer-section {
+            border-top: 1px solid $color-border !important;
+        }
+    }
+
+    .footer-support-link,
+    .logininfo,
+    .homelink {
+        margin: $spacing-xs 0 !important;
+    }
+}
+
+// The data retention summary link is in the user's profile, which is the right place for it: not repeated in every footer
+// (nor on the login page). display: none also keeps it out of the reading order. The site setting
+// tool_dataprivacy | showdataretentionsummary controls the same link for every theme.
+#page-footer .tool_dataprivacy {
+    display: none !important;
+}
+
+// Square arrow-only "Back to top" button for small screens; the label stays as visually hidden text (accessible name).
+@mixin accessible-totop-compact {
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0 !important;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+
+    &[hidden] {
+        display: none !important;
+    }
+
+    .icon {
+        margin: 0 !important;
+    }
+
+    .accessible-totop-label {
+        @include visually-hidden;
+    }
+}
+
+// "Back to top": first element of the footer, fixed at the bottom right while shown. Text label always visible (no
+// icon-only button). Stays left of the block drawer when it is open (hidden on small screens), and above the sticky Save/Cancel bar
+// of forms.
+#page-footer .accessible-totop {
+    position: fixed !important;
+    right: $spacing-lg;
+    bottom: $spacing-lg;
+    z-index: 1020;
+    background-color: $color-bg !important;
+    color: $color-text !important;
+    border: $border-width solid $color-border !important;
+    box-shadow: 0 0 0 $border-width $color-focus-halo;
+
+    &[hidden] {
+        display: none !important;
+    }
+
+    &:hover,
+    &:focus-visible {
+        background-color: $color-focus !important;
+        color: $color-on-focus !important;
+    }
+
+    // Phones (below Bootstrap's sm, 576px): the labelled button covered a good part of the screen. A square arrow button
+    // there, with the label kept as visually hidden text (its accessible name, from the language pack).
+    @include media-breakpoint-down(sm) {
+        @include accessible-totop-compact;
+    }
+}
+// The same with larger text below the sm breakpoint scaled by the text size (720px at 125%, 864px at 150%, 1152px at
+// 200%): at 200% on a 1024x768 screen the labelled button was 382px by 106px.
+@each $percent, $width in (125: 45em, 150: 54em, 200: 72em) {
+    @media (max-width: ($width - 0.01em)) {
+        body.accessible-fontsize-#{$percent} #page-footer .accessible-totop {
+            @include accessible-totop-compact;
+        }
+    }
+}
+// The block drawer overlays the page (it does not push it aside) and sits above the button (z-index 1031), so keep the
+// button clear of it: beside the drawer from md up, hidden below that where the drawer takes the whole screen.
+#page.show-drawer-right #page-footer .accessible-totop {
+    display: none !important;
+}
+
+@include media-breakpoint-up(md) {
+    #page.show-drawer-right #page-footer .accessible-totop:not([hidden]) {
+        display: inline-block !important;
+        right: calc(#{$spacing-lg} + 22rem);
+    }
+}
+// With a sticky form footer the button rises above it.
+.hasstickyfooter #page-footer .accessible-totop {
+    bottom: calc(#{$spacing-lg} + var(--accessible-stickyfooter-height, #{$stickyfooter-height}));
+}
+
+// Forms with a sticky footer (Save/Cancel bar fixed at the bottom): leave room so the end of the footer is not hidden
+// behind it when scrolled to the bottom.
+.hasstickyfooter #page-footer.accessible-footer {
+    padding-bottom: calc(#{$spacing-lg} + var(--accessible-stickyfooter-height, #{$stickyfooter-height})) !important;
+}
+
+// Moodle's sticky footer (the Save/Cancel bar of forms). Boost gives it a fixed height ($stickyfooter-height) with
+// overflow hidden and hides it with a negative bottom of that height, so at larger text sizes the buttons are clipped.
+// Here it grows with its buttons and slides out with a transform, as Moodle 5.3 does; accessible.js publishes its real
+// height as --accessible-stickyfooter-height (the page footer, "Back to top" and scroll padding use it, and so does
+// Moodle 5.3's own --sticky-footer-total-height). When it would take more than a quarter of the window, accessible.js adds
+// body.accessible-stickyfooter-static and it stays at the end of the form instead (it is the form's last child).
+.stickyfooter {
+    height: auto !important;
+    min-height: $stickyfooter-height;
+    bottom: 0 !important;
+    transform: translateY(100%);
+    transition: transform 0.5s;
+
+    .sticky-footer-content-wrapper {
+        height: auto !important;
+        min-height: $stickyfooter-height;
+    }
+
+    .sticky-footer-content {
+        overflow: visible !important;
+    }
+}
+// Boost caps the buttons at the course content width (830px, fixed in px), so at larger text sizes they stacked although the
+// window had room: use the width of the main column instead (80% of the window, see the page layout section).
+@include media-breakpoint-up(md) {
+    .pagelayout-standard .stickyfooter .sticky-footer-content,
+    body.limitedwidth.uses-drawers .stickyfooter .sticky-footer-content {
+        max-width: 80% !important;
+    }
+}
+body.accessible-stickyfooter-static .stickyfooter {
+    position: static !important;
+    transform: none !important;
+    box-shadow: none !important;
+
+    .sticky-footer-content {
+        max-width: none !important;
+    }
+}
+.hasstickyfooter .stickyfooter {
+    transform: none;
+}
+.hasstickyfooter {
+    --sticky-footer-total-height: var(--accessible-stickyfooter-height, #{$stickyfooter-height}) !important;
+}
+
+
+// ========================================
+// 22. ICONS
+// ========================================
+
+// Icons: Boost sizes them in px (20x16), so they stayed small while the text grew. Same proportions, in rem.
+$icon-scale: (1: .5, 2: .75, 3: 1, 4: 1.5, 5: 2, 6: 2.5, 7: 3);
+
+@each $size, $mult in $icon-scale {
+    .icon-size-#{$size} .icon {
+        width: 1.25rem * $mult !important;
+        max-width: 1.25rem * $mult !important;
+        height: 1rem * $mult !important;
+        max-height: 1rem * $mult !important;
+        font-size: 1rem * $mult !important;
+    }
+}
+
+// Every other icon: Boost caps the box at 30px by 24px while the glyph follows the text, so with larger text the glyph
+// was clipped (the favourite star in the messages drawer, menu chevrons). The same caps in rem (unchanged at 100%).
+.icon {
+    max-width: 1.875rem !important;
+    max-height: 1.5rem !important;
+}
+
+// "Add content" / "Add section" buttons of the course page (Boost: 14px) and the group mode button of activities (16px):
+// fixed px, small in their 44px buttons and smaller still next to larger text. 1.25rem, centred in the button.
+.course-content .divider .btn.add-content .icon,
+.activity-groupmode-info .groupmode-information .icon {
+    width: 1.25rem !important;
+    height: 1.25rem !important;
+    font-size: 1.25rem !important;
+    margin: 0 !important;
+}
+.course-content .divider .btn.add-content,
+.activity-groupmode-info .groupmode-information {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+// Activity icons (course page, activity header, activity chooser, blocks): Boost colours them by purpose (pink assessment,
+// blue content, orange communication...) at about 3:1 on white, with thin strokes, in boxes fixed in px (52 / 42 / 32px)
+// that stay small next to larger text. Drawn in the text colour here (black; white in high contrast), keeping their shape,
+// which is what tells the activity type apart; the boxes in rem (same size at 100%). Branded icons and icons Moodle marks
+// as not to be filtered keep their own colours.
+.activityiconcontainer {
+    width: 3.25rem !important;
+    height: 3.25rem !important;
+    max-width: 3.25rem !important;
+    max-height: 3.25rem !important;
+
+    &.small {
+        width: 2.625rem !important;
+        height: 2.625rem !important;
+        max-width: 2.625rem !important;
+        max-height: 2.625rem !important;
+    }
+
+    &.smaller {
+        width: 2rem !important;
+        height: 2rem !important;
+        max-width: 2rem !important;
+        max-height: 2rem !important;
+    }
+
+    &:not(.isbranded) .activityicon:not(.nofilter),
+    &:not(.isbranded) .icon:not(.nofilter) {
+        filter: brightness(0) !important;
+    }
+}
+body.accessible-contrast-high .activityiconcontainer:not(.isbranded) {
+    .activityicon:not(.nofilter),
+    .icon:not(.nofilter) {
+        filter: brightness(0) invert(1) !important;
+    }
+}
+
+// Drawer open/close buttons: icon one step larger (1.5rem) so it is easy to see inside the 44px target.
+.drawertoggle .icon {
+    width: 1.5rem !important;
+    max-width: 1.5rem !important;
+    height: 1.5rem !important;
+    max-height: 1.5rem !important;
+    font-size: 1.5rem !important;
+}
+
+// Dropdown arrow: Boost draws it at 9px, too small to see. 1rem, and it follows the text size.
+.dropdown-toggle::after {
+    font-size: 1rem !important;
+    width: 1rem !important;
+}
+
+
+// ========================================
+// 23. FILE PICKER
+// ========================================
+
+// Drop area of the file manager / file picker: Boost fixes its height and the icon space above the text in px, so at
+// larger text sizes the message spilled out of the dashed box. Same values, in rem.
+.filepicker-filelist,
+.filemanager-container {
+    min-height: 12rem !important;
+}
+// The file manager keeps room for its content area even when it is empty.
+.filemanager .fp-content {
+    min-height: 10rem !important;
+}
+// The big "drop here" arrow is light grey (#8f959e, about 3:1); dark grey like the border.
+.filemanager-container .fa-arrow-circle-o-down,
+.filepicker-filelist .fa-arrow-circle-o-down {
+    color: $color-strong-grey !important;
+}
+
+// Dragging a file over the area: solid black border, so the change does not rely on colour alone.
+.filepicker-filelist.dndupload-over .dndupload-target,
+.filemanager-container.dndupload-over .dndupload-target {
+    border-style: solid !important;
+}
+// Empty file area and its drop target: the text starts below the (larger) drop arrow.
+.filemanager.fm-noitems .fm-empty-container,
+.filepicker-filelist .dndupload-target,
+.filemanager-container .dndupload-target {
+    padding-top: torem(85px) !important;
+}
+
+// Repository list (Content bank, Server files, Upload a file...): black text, and black with white text for the
+// hovered/focused and the selected repository instead of link colours and Bootstrap's blue pill.
+.fp-repo-area .nav-link {
+    color: $color-text !important;
+    background-color: $color-bg !important;
+    text-decoration: none !important;
+
+    &:visited {
+        color: $color-text !important;
+    }
+
+    &:hover,
+    &:focus,
+    &.active {
+        color: $color-bg !important;
+        background-color: $color-text !important;
+
+        .fp-repo-name {
+            color: $color-bg !important;
+        }
+    }
+
+    // The selected repository is also bold, so it is not told apart from the hovered one by position alone.
+    &.active {
+        font-weight: 700 !important;
+    }
+}
+
+
+// ========================================
+// 24. BOOST BLUE HOVER / SELECTED STATES
+// ========================================
+
+// Lists that Boost highlights in blue on hover: same black-on-white inversion as the menus. A selected item (not just
+// hovered) keeps white fill and gets a thick black border and bold text, so it is not told apart by colour alone.
+
+// Messaging drawer: conversation / contact lists.
+.message-app .list-group .list-group-item:hover,
+.content-item-container:hover,
+.content-item-container.unread:hover {
+    color: $color-bg !important;
+    background-color: $color-text !important;
+
+    * {
+        color: $color-bg !important;
+    }
+}
+
+// Activity chooser: the selected option.
+.modchoosercontent .optionscontainer .option.selected {
+    background-color: $color-bg !important;
+    border: 4px solid $color-border !important;
+    font-weight: 700 !important;
+}
+
+// Gradebook tree: the selected node.
+.path-grade-edit-tree .collapse-list .unlist [data-for="sectionnode"][data-selected="true"] > .collapse-list-item:first-child {
+    background-color: $color-bg !important;
+    border: 4px solid $color-border !important;
+    color: $color-text !important;
+    font-weight: 700 !important;
+}
+
+// Move activity / move section modals.
+.move-activity-tree,
+.move-section-tree {
+    .collapse-list-item:hover,
+    .collapse-list-item:focus {
+        background-color: $color-text !important;
+        border-color: $color-border !important;
+
+        a,
+        a:hover,
+        a:focus {
+            color: $color-bg !important;
+        }
+        &::after {
+            border-bottom-color: $color-bg !important;
+        }
+    }
+}
+
+// Question bank categories: the drag handle outline.
+.qbank_managecategories-item.draghandle > .container:hover {
+    border-color: $color-border !important;
+}
+
+// More menu: nested and current / active items.
+.moremenu .dropdownmoremenu > .dropdown-menu .dropdown-menu .dropdown-item:hover,
+.moremenu .dropdownmoremenu > .dropdown-menu .dropdown-menu .dropdown-item:focus,
+.moremenu .dropdown-item[aria-current="true"]:focus-within,
+.moremenu .dropdown-item[aria-current="true"]:hover,
+.moremenu .dropdown-item.active:focus-within,
+.moremenu .dropdown-item.active:hover {
+    color: $color-bg !important;
+    background-color: $color-text !important;
+}
+
+
+// ========================================
+// 25. COURSE MANAGEMENT AND SITE-WIDE CARDS
+// ========================================
+
+// Category and course rows: Boost uses a pale grey border (1.3:1) and marks the selected category with a wider blue
+// left border. Black borders instead; the selected category keeps the wide left border (black) and is also bold.
+#course-category-listings .listitem {
+    border-color: $color-border !important;
+}
+#course-category-listings .category-listing .listitem {
+    border-width: $border-width !important;
+    border-radius: $border-radius !important;
+}
+#course-category-listings .listitem[data-selected="1"] {
+    border-left-width: 8px !important;
+    font-weight: 700 !important;
+}
+
+// Cards (management panels, profile, dashboard, blocks...): Boost gives them a pale grey border (about 1.3:1) and a
+// tinted header / footer with a faint rule. Black frame and white header / footer with a black rule instead.
+.card {
+    border: $border-width solid $color-border !important;
+    border-radius: $border-radius !important;
+
+    > .card-header,
+    > .card-footer {
+        background-color: $color-bg !important;
+        border-color: $color-border !important;
+        border-width: $border-width !important;
+        border-radius: 0 !important;
+    }
+    > .card-header {
+        border-style: none none solid none !important;
+    }
+    > .card-footer {
+        border-style: solid none none none !important;
+    }
+}
+
+// Action rows (Create category / Create course / Sort / Per page): the first is a bare link, the others are action-menu
+// wrappers, which sat on different baselines and wrapped one by one. One flex row, wrapping together.
+.listing-actions {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: $spacing-sm !important;
+
+    > * {
+        margin: 0 !important;
+    }
+}
+
+
+// ========================================
+// 26. BLOCKS
+// ========================================
+
+// Recent activity block: the date floats right over the item name, which then breaks mid-word under it. Stack them.
+.block_recent_activity .head .date {
+    float: none !important;
+    display: block !important;
+}
+
+// --- Timeline block toolbar ---
+
+// The search field is $field-height tall while the two dropdown buttons beside it stayed at the touch-target height.
+// Styled from the theme only; the block itself is not touched.
+[data-region="timeline"] {
+    .dropdown > .btn,
+    .btn-group > .btn {
+        min-height: $field-height !important;
+    }
+}
+
+
+// ========================================
+// 27. QUIZ
+// ========================================
+
+// Moodle gives the "Question 1 / Not yet answered / Marked out of..." column a fixed 7em, and our larger headings
+// ("Información") spilled out of it. In rem so it grows with the text size; long words break instead of being cut.
+.que .info {
+    flex: 0 0 auto;
+    width: 11rem;
+    max-width: 40%;
+    overflow-wrap: anywhere;
+}
+
+// "Information" in a description question: the heading was bigger than its column.
+.que.description .info h3.no {
+    font-size: 1.25rem !important; // beats the global h3 size
+}
+
+// Flag button: rarely used, so smaller. It keeps the 44px touch target; the padding, text and image shrink.
+.que .info .questionflag a {
+    padding: 0.25rem 0.75rem !important; // beats the global button padding (section 7)
+    font-size: 0.875rem !important;
+    width: auto !important;
+    height: auto !important;
+
+    img.questionflagimage {
+        display: inline;
+        vertical-align: middle;
+        margin: 0 0.25rem 0 0;
+    }
+}
+
+// "Edit question": smaller text and the icon close to it. Short names fit on one line; long translations wrap inside the
+// frame (a forced single line spilled out of it).
+.que .info .editquestion a {
+    font-size: 0.875rem;
+
+    .icon {
+        margin-right: 0.25rem;
+    }
+}
+
+// Back button of the quiz pages: a chevron before the text (right-pointing in right-to-left languages).
+.path-mod-quiz a.btn.btn-secondary[href*="mod/quiz/view.php"]::before {
+    content: "\f053"; // fa-chevron-left
+    font: var(--fa-font-solid);
+    margin-right: 0.5rem;
+}
+// Right-to-left languages: the chevron points the other way.
+.dir-rtl .path-mod-quiz a.btn.btn-secondary[href*="mod/quiz/view.php"]::before {
+    content: "\f054"; // fa-chevron-right
+    margin: 0 0 0 0.5rem;
+}
+
+// Question blocks: Boost's pale blue fills (answer area) and grey fills are glare for low vision. White with a frame, like
+// the alerts: the block is told apart by its border, never by a tint. (High contrast already does this in section 32.)
+.que .info,
+.que .formulation,
+.que .outcome,
+.que .comment {
+    background-color: $color-bg;
+    border: $border-width solid $color-border;
+    border-radius: 0.5rem; // the info column had Boost's 2px, the question text 8px: all the same now
+}
+
+// Version tag of a question ("v1 (latest)"): Bootstrap badges never wrap, so long translations ran out of the info frame.
+.que .info .badge {
+    white-space: normal;
+    max-width: 100%;
+    text-align: start;
+}
+
+// Results after "Check": the feedback of a chosen option had Moodle's pale yellow fill (white on it was 1.1:1 in high
+// contrast). White with a frame like the other question blocks; the correct / incorrect icons are bigger (they already
+// differ in shape, tick vs cross) and the state word is bold.
+.que .specificfeedback {
+    background-color: $color-bg !important; // core's question styles set the yellow fill with the same specificity
+    color: $color-text !important;
+    border: $border-width solid $color-border !important;
+    padding: 0.25rem 0.5rem;
+}
+
+.que .questioncorrectnessicon,
+.que .icon.fa-circle-check,
+.que .icon.fa-circle-xmark {
+    font-size: 1.75rem;
+    width: 1.75rem;
+    height: 1.75rem;
+}
+
+.que .info .state {
+    font-weight: 700;
+}
+
+// Feedback blocks ("Partially correct", "Your answer is..."): Boost colours their text with the warning gold (#90682f,
+// about 4.9:1 on white) or the success green. The wording already says the state, so the text takes the theme colour
+// (black / white in high contrast); links inside too, as Boost darkens them to a blue.
+.que .outcome,
+.que .comment {
+    color: $color-text !important;
+
+    a {
+        color: $color-text !important;
+    }
+}
+
+
+// ========================================
+// 28. LOGIN PAGE
+// ========================================
+
+// The form filled the whole window (a 2500px wide button on a QHD screen) while the fields stayed at a few letters wide
+// (the placeholder was cut off). One centred column, fields and button the same width, all in rem so it grows with the text.
+.loginform {
+    max-width: 28rem;
+    margin: 2rem auto 0;
+
+    .form-control {
+        width: 100% !important;
+    }
+
+    // Password field: the full-width rule above pushed the eye button onto its own row. Keep it beside the input,
+    // and let the input shrink so the whole group is as wide as the other fields.
+    .toggle-sensitive-wrapper {
+        flex-wrap: nowrap;
+
+        .form-control {
+            width: 1% !important;
+            flex: 1 1 auto;
+        }
+    }
+
+    // Space between the Log in button, the language menu and the cookies notice.
+    .login-languagemenu {
+        margin: 2.5rem 0 1.5rem !important;
+    }
+}
+
+
+// ========================================
+// 29. INFORMATION TAB OF THE THEME SETTINGS (colour test, font specimens, licences)
+// ========================================
+
+// The colours of the test image are literal in the template on purpose; only the frame and text follow the palette.
+.accessible-about {
+    .accessible-about-support {
+        padding: 0.5rem 1rem;
+        white-space: pre-wrap;
+        background-color: $color-bg;
+        color: $color-text;
+        border: $border-width solid $color-border;
+    }
+
+    .accessible-about-previews {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+        gap: 1.5rem;
+        margin: 1.5rem 0;
+    }
+
+    .accessible-about-test {
+        display: block;
+        width: 100%;
+        height: auto;
+        border: $border-width solid $color-border;
+    }
+
+    .accessible-about-previewlabel {
+        display: block;
+        margin-top: 0.5rem;
+        font-weight: 700;
+    }
+
+    .accessible-about-font {
+        margin-bottom: 1.5rem;
+        padding: 0.5rem 1rem;
+        border: $border-width solid $color-border;
+    }
+
+    .accessible-about-sample-large {
+        font-size: 2rem;
+        line-height: 1.4;
+    }
+
+    .accessible-about-bold {
+        font-weight: 700;
+    }
+
+    .accessible-about-font-lexenddeca {
+        font-family: "Lexend Deca", sans-serif !important;
+    }
+
+    .accessible-about-font-atkinson {
+        font-family: "Atkinson Hyperlegible", sans-serif !important;
+    }
+
+    .accessible-about-font-opendyslexic {
+        font-family: "OpenDyslexic", sans-serif !important;
+    }
+
+}
+
+// Documentation button of the Information tab, and the page that shows the guide. Lines stay under about 70
+// characters so they are easy to follow with a magnifier; everything wraps, so nothing scrolls sideways.
+.accessible-about .accessible-about-guide {
+    margin-bottom: 1.5rem;
+    padding: 0.5rem 1rem;
+    border: $border-width solid $color-border;
+}
+
+.accessible-guide .accessible-guide-content {
+    max-width: 50rem;
+
+    pre,
+    code,
+    td,
+    th {
+        overflow-wrap: anywhere;
+    }
+
+    pre {
+        padding: 0.5rem 1rem;
+        white-space: pre-wrap;
+        border: $border-width solid $color-border;
+    }
+
+    table {
+        width: 100%;
+        margin-bottom: 1rem;
+    }
+}
+
+
+// ========================================
+// 30. INLINE CODE
+// ========================================
+
+// Bootstrap's pink (#db1a74, 4.8:1 on white) is below AAA. Code inside <pre> keeps the text colour of the block, so
+// code blocks (e.g. student answers in assignments) stay black on white. Monospace is the other cue, so colour is not
+// the only signal.
+code {
+    color: $color-code;
+}
+
+// Code blocks keep the text colour (black on white).
+pre code {
+    color: inherit;
+}
+
+
+// ========================================
+// 31. USER ACCESSIBILITY OPTIONS
+// ========================================
+
+// The user's choices (/theme/accessible/preferences.php) reach the CSS as body classes set in layout/drawers.php;
+// only values that differ from the default add a class. See classes/preferences.php.
+
+// --- Fonts (files in fonts/, all SIL Open Font License) ---
+$unicode-latin: "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD";
+$unicode-latin-ext: "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF";
+
+@mixin font-face($family, $file, $subset, $weight, $range) {
+    @font-face {
+        font-family: $family;
+        font-style: normal;
+        font-display: swap;
+        font-weight: $weight;
+        src: url("[[font:theme|#{$file}-#{if($subset, "#{$subset}-", "")}#{$weight}-normal.woff2]]") format("woff2");
+        @if $range {
+            unicode-range: #{$range};
+        }
+    }
+}
+
+@each $weight in 400, 700 {
+    @include font-face("Lexend Deca", "lexend-deca", "latin", $weight, $unicode-latin);
+    @include font-face("Lexend Deca", "lexend-deca", "latin-ext", $weight, $unicode-latin-ext);
+    @include font-face("Atkinson Hyperlegible", "atkinson-hyperlegible", "latin", $weight, $unicode-latin);
+    @include font-face("Atkinson Hyperlegible", "atkinson-hyperlegible", "latin-ext", $weight, $unicode-latin-ext);
+    // OpenDyslexic: the complete files of its author (a subset could not keep the Reserved Font Name), no unicode-range.
+    @include font-face("OpenDyslexic", "opendyslexic", null, $weight, null);
+}
+
+// The font chosen by the user replaces the default (Lexend Deca on the body). The classes come from classes/preferences.php.
+body.accessible-font-atkinson {
+    font-family: "Atkinson Hyperlegible", $font-family-base !important;
+}
+body.accessible-font-opendyslexic {
+    font-family: "OpenDyslexic", $font-family-base !important;
+}
+
+// --- Text size: every size in the theme is rem, so scaling the root scales the page ---
+@each $percent in 125, 150, 200 {
+    :root:has(body.accessible-fontsize-#{$percent}) {
+        font-size: #{$percent * 1%} !important;
+    }
+}
+// Caps on small screens: at 200% a phone showed a few words per line under a header that took half the screen. Up to 150%
+// below 48em (768px, small tablets) and up to 125% below 30em (480px, phones); larger screens get the size chosen. The
+// queries measure the screen in the browser's own em, which the theme's text size does not change. The editing area of
+// TinyMCE keeps the chosen size (its own media queries would measure the iframe, not the screen).
+@media (max-width: 47.99em) {
+    :root:has(body.accessible-fontsize-200) {
+        font-size: 150% !important;
+    }
+}
+
+@media (max-width: 29.99em) {
+    :root:has(body.accessible-fontsize-150, body.accessible-fontsize-200) {
+        font-size: 125% !important;
+    }
+}
+
+// --- Text spacing (WCAG 1.4.12 asks pages to survive 1.5 line height, 0.12em letters, 0.16em words) ---
+body.accessible-spacing-wide {
+    line-height: 1.8 !important;
+    letter-spacing: 0.05em !important;
+    word-spacing: 0.1em !important;
+}
+body.accessible-spacing-extrawide {
+    line-height: 2 !important;
+    letter-spacing: 0.12em !important;
+    word-spacing: 0.16em !important;
+
+    p {
+        margin-bottom: 2em !important;
+    }
+}
+
+// --- Justified text: always shown start-aligned ---
+// Justified text leaves uneven gaps between words, which is hard to read with dyslexia or low vision. Content made
+// with the editor (or imported) keeps its markup; it is just shown start-aligned.
+[style*="text-align: justify"],
+[style*="text-align:justify"] {
+    text-align: start !important;
+}
+// --- Reduced motion: the user's choice, or the system's ---
+@mixin no-motion {
+    *,
+    *::before,
+    *::after {
+        animation: none !important;
+        transition: none !important;
+        scroll-behavior: auto !important;
+    }
+}
+body.accessible-motion-reduced {
+    @include no-motion;
+}
+// Smooth scrolling is set on the root element, which the body rule above does not reach.
+:root:has(body.accessible-motion-reduced) {
+    scroll-behavior: auto !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    @include no-motion;
+    html {
+        scroll-behavior: auto !important;
+    }
+}
+
+// --- Thick focus outline: $focus-outline-width reads this variable ---
+body.accessible-focus-thick {
+    --accessible-focus-width: 8px;
+}
+
+// --- Colour vision ---
+// The SVG filters are in templates/colorfilters.mustache. They are applied through a fixed layer that covers
+// the window (body::after, no extra markup): its backdrop-filter recolours everything below it, including cross-origin
+// iframes (YouTube, Vimeo, LTI), which a filter on <html> does not reach in Chromium. Clicks pass through the layer, it has
+// no content for assistive technology, and it is hidden when printing. Not recoloured, because the browser draws them above
+// everything: fullscreen video and native <dialog> modals (Moodle's own modals are normal elements and are covered).
+// Where the browser cannot use url() in backdrop-filter, the old rule applies (a filter on <html>, not on <body>: a filter on
+// <body> would make it the containing block of the fixed navbar and drawers).
+@supports (backdrop-filter: url("#accessible-colortype-mono")) {
+    @each $type in (protan, deutan, tritan) {
+        @each $strength in (mild, medium, strong) {
+            body.accessible-colortype-#{$type}.accessible-colorstrength-#{$strength}::after {
+                content: "";
+                position: fixed;
+                inset: 0;
+                z-index: 2147483000;
+                pointer-events: none;
+                backdrop-filter: url("#accessible-colortype-#{$type}-#{$strength}");
+            }
+        }
+    }
+    body.accessible-colortype-mono::after {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: 2147483000;
+        pointer-events: none;
+        backdrop-filter: url("#accessible-colortype-mono");
+    }
+    @media print {
+        body::after {
+            display: none !important;
+        }
+    }
+}
+
+@supports not (backdrop-filter: url("#accessible-colortype-mono")) {
+    @each $type in (protan, deutan, tritan) {
+        @each $strength in (mild, medium, strong) {
+            :root:has(body.accessible-colortype-#{$type}.accessible-colorstrength-#{$strength}) {
+                filter: url("#accessible-colortype-#{$type}-#{$strength}");
+            }
+        }
+    }
+    :root:has(body.accessible-colortype-mono) {
+        filter: url("#accessible-colortype-mono");
+    }
+}
+
+
+// ========================================
+// 32. COLOUR PALETTE AND HIGH CONTRAST
+// ========================================
+
+// All colours are the custom properties below (see the tokens at the top). Normal = black on white. The "high contrast"
+// user option adds body.accessible-contrast-high (and data-bs-theme="dark" on the body, so Bootstrap's own components
+// follow): white on black, secondary text light grey, links white and underlined like the text, yellow only for
+// hover/focus fills and the focus ring.
+// Contrast on black: white 21:1, secondary grey 15.9:1, yellow 16.6:1, frames and icons 7.6:1 or more.
+// Yellow fills always carry black text ($color-on-focus, 16.6:1). Alerts keep the coloured frame + pattern + icon
+// design: frames and patterns get brighter colours, and there are no coloured fills.
+
+@mixin palette-light {
+    --accessible-bg: #fff;
+    --accessible-text: #000;
+    --accessible-border: #000;
+    --accessible-muted: #555;
+    --accessible-surface: #e6e6e6;
+    --accessible-strong-grey: #595959;
+    --accessible-divider: #ddd;
+    --accessible-link: #000;
+    --accessible-focus: #fc0;
+    --accessible-focus-ring: #000;
+    --accessible-focus-halo: #fff;
+    --accessible-error: #b00020;
+    --accessible-success: #060;
+    --accessible-warning: #8a4500;
+    --accessible-info: #0050a0;
+    --accessible-badge: #b50010;
+    --accessible-error-text: #8b0000;
+    --accessible-pattern-success: #3c963c;
+    --accessible-pattern-error: #e04646;
+    --accessible-pattern-warning: #be6e14;
+    --accessible-pattern-info: #3c82dc;
+    --accessible-code: #a00f55;
+    --accessible-glyph-success: #040;
+    --accessible-glyph-error: #600;
+    --accessible-glyph-warning: #630;
+    --accessible-glyph-info: #036;
+    --accessible-invalid-stripe: rgba(204, 0, 0, 0.1);
+    --accessible-shadow: rgba(0, 0, 0, 0.15);           // Drop shadow of menus and panels
+    --accessible-invalid-ring: rgba(176, 0, 32, 0.3);   // Focus ring of an invalid field
+    --accessible-switch-halo: rgba(255, 255, 255, 0.5); // Focus halo of the edit mode switch (on the always-black top bar)
+}
+
+@mixin palette-high {
+    --accessible-bg: #000;
+    --accessible-text: #fff;
+    --accessible-border: #fff;
+    --accessible-muted: #e0e0e0;
+    --accessible-surface: #1a1a1a;
+    --accessible-strong-grey: #bdbdbd;
+    --accessible-divider: #595959;
+    --accessible-link: #fff;
+    --accessible-focus: #ffe600;
+    --accessible-focus-ring: #ffe600;
+    --accessible-focus-halo: #000;
+    --accessible-error: #ff8080;
+    --accessible-success: #6f6;
+    --accessible-warning: #ffa733;
+    --accessible-info: #7fbfff;
+    --accessible-badge: #ff8080;
+    --accessible-error-text: #ff8080;
+    --accessible-pattern-success: #6f6;
+    --accessible-pattern-error: #ff8080;
+    --accessible-pattern-warning: #ffa733;
+    --accessible-pattern-info: #7fbfff;
+    --accessible-code: #ff9ccf;
+    --accessible-glyph-success: #6f6;
+    --accessible-glyph-error: #ff8080;
+    --accessible-glyph-warning: #ffa733;
+    --accessible-glyph-info: #7fbfff;
+    --accessible-invalid-stripe: rgba(255, 128, 128, 0.35);
+    // Same values as the light palette: these three were fixed values before they became tokens, and the look must not change.
+    --accessible-shadow: rgba(0, 0, 0, 0.15);
+    --accessible-invalid-ring: rgba(176, 0, 32, 0.3);
+    --accessible-switch-halo: rgba(255, 255, 255, 0.5);
+}
+
+// Light palette: the default, on the page root.
+:root {
+    @include palette-light;
+
+    // Bootstrap's page background and secondary text follow the palette (Moodle 5.3 made the page #f8f9fa and the
+    // secondary text #6a737b, 4.83:1). Black text like .text-muted above. High contrast sets its own values below.
+    --bs-body-bg: var(--accessible-bg);
+    --bs-secondary-color: var(--accessible-text);
+    // Same for the greys of Boost 5.3 and its design system: muted text (#6a737b, 4.83:1) in the course page descriptions
+    // and the pale grey (#f8f9fa) behind each activity. High contrast keeps Bootstrap's own dark values (set on the body).
+    --bs-gray-600: var(--accessible-strong-grey);
+    --mds-text-muted: var(--accessible-strong-grey);
+    --mds-bg-surface-subtle: var(--accessible-bg);
+}
+
+// High contrast palette: set by the body class of the user option.
+body.accessible-contrast-high {
+    @include palette-high;
+
+    // Bootstrap's own variables (its dark mode sets the rest): the page, text and frames follow the palette.
+    --bs-body-bg: var(--accessible-bg);
+    --bs-body-color: var(--accessible-text);
+    --bs-emphasis-color: var(--accessible-text);
+    --bs-secondary-color: var(--accessible-muted);
+    --bs-tertiary-color: var(--accessible-muted);
+    --bs-secondary-bg: var(--accessible-surface);
+    --bs-tertiary-bg: var(--accessible-bg);
+    --mds-bg-surface-subtle: var(--accessible-bg); // Boost 5.3 activity cards: its dark value is #292e33
+    // Boost 5.3's dark mode paints raised surfaces (top bar, cards, dropdowns, modals) #343a40 through these two: black here, with
+    // the white frames of this palette (Boost 5.2 has no such surfaces, so nothing changes there).
+    --bs-white: var(--accessible-bg);
+    --bs-gray-100: var(--accessible-bg); // The inner area of 5.3 course sections (it is drawn #1d2125 in dark mode)
+    --mds-bg-surface-default: var(--accessible-bg);
+    --bs-border-color: var(--accessible-border);
+    --bs-link-color: var(--accessible-link);
+    --bs-link-hover-color: var(--accessible-link);
+    color-scheme: dark;
+}
+// The root also turns black, so overscroll and gaps do not show white. A literal colour: the root carries the light palette.
+:root:has(body.accessible-contrast-high) {
+    background-color: #000 !important;
+    color-scheme: dark;
+}
+
+body.accessible-contrast-high {
+    // The top bar keeps its look (black bar, white text, white rule under it): inside it the normal palette is used, since its
+    // rules draw it as the opposite of the page. The menus and popovers that open from it are part of the page, so they
+    // get the high contrast palette back.
+    .navbar {
+        @include palette-light;
+    }
+    .navbar .dropdown-menu,
+    .navbar .popover-region-container {
+        @include palette-high;
+    }
+
+    // Bootstrap's white utility classes and Boost's white containers: black on this palette.
+    #page,
+    #region-main,
+    .bg-white:not(.navbar),
+    .bg-light,
+    .activity-details,
+    #page.drawers .main-inner,
+    nav.moremenu,
+    .card-footer,
+    .que .info,
+    .que .formulation,
+    .que .outcome,
+    .que .comment,
+    .quiz-timer-inner,
+    .bg-secondary:not(.btn):not(.badge) {
+        background-color: $color-bg !important;
+        color: $color-text !important;
+    }
+
+    // The navbar's own menu keeps the bar's background (the rule above is for the page's secondary menu).
+    .navbar nav.moremenu {
+        background-color: transparent !important;
+    }
+
+    // Initials avatar (profile header, user menu): a framed circle instead of Bootstrap's pale grey fill.
+    .userinitials {
+        background-color: $color-bg !important;
+        color: $color-text !important;
+        border: $border-width solid $color-border !important;
+    }
+
+    // Calendar category colour keys: frame, no pale fill.
+    [class*="calendar_event_"] {
+        background-color: $color-bg !important;
+        color: $color-text !important;
+        border-color: $color-border !important;
+    }
+
+    // The text editor's page (an iframe with its own white document) is turned light-on-dark. Images in it are turned too:
+    // hue-rotate keeps their colours roughly right. The toolbar and menus around it follow the palette (section 19).
+    .tox .tox-edit-area__iframe {
+        background-color: #fff !important;
+        filter: invert(1) hue-rotate(180deg);
+    }
+    // Bootstrap's .text-dark would stay dark on the black page.
+    .text-dark {
+        color: $color-text !important;
+    }
+
+    // Icons that Boost paints in its link blue (#0d5ca1: 7:1 on white, about 3:1 on black) take the colour of the text around
+    // them; icons with a semantic text-* class keep it.
+    .icon:not([class*="text-"]) {
+        color: inherit !important;
+    }
+
+    // Checked boxes are white here, so the tick and the radio dot are black (the normal ones are white on black).
+    input[type="checkbox"]:not([role="switch"]):checked {
+        background-image: svg-tick("%23000") !important;
+    }
+    input[type="radio"]:checked {
+        background-image: svg-dot(2, "%23000") !important;
+    }
+
+    // Boost fills a focused plain link with pale blue (#d2e8fb): white text on it would be unreadable. The yellow focus ring
+    // is the focus indicator; no fill.
+    a:focus,
+    a.focus {
+        background-color: transparent !important;
+    }
+
+    // The debugging footer panel is dark in both modes (white text on Bootstrap's dark grey); like the top bar it uses the
+    // normal palette inside, where $color-bg is white.
+    .footer-dark {
+        @include palette-light;
+    }
+
+    // Boost's dark grey for the category name on course cards.
+    .categoryname {
+        color: $color-muted !important;
+    }
+
+    // Table cells: Boost paints header and body cells pale grey/white in several reports (gradebook setup...). Sticky headers
+    // and columns need an opaque fill, so use the page colour (stripes and hover are inset shadows and still show).
+    table th,
+    table td {
+        background-color: $color-bg !important;
+        color: $color-text !important;
+    }
+
+    // Activities hidden from students: Boost's pale grey (#f8f9fa) behind the name; a quiet dark grey here.
+    .activity-item.hiddenactivity,
+    .bg-pulse-grey {
+        background-color: $color-surface !important;
+    }
+
+    // --- High contrast: icons, hover fills, links, notifications ---
+
+    // Image icons (drawer toggles, activity and course index icons, file types) come with their own dark grey or purpose
+    // colour baked in. Here they are drawn solid white (their shape is what carries the meaning); black on a yellow fill.
+    img.icon {
+        filter: brightness(0) invert(1) !important;
+    }
+    // An icon inside a button takes the black of the button's text on the yellow fill.
+    :is(.btn, .page-link, .dropdown-item):not(:disabled):not(.disabled):is(:hover, :focus, :focus-visible) img.icon {
+        filter: brightness(0) !important;
+    }
+
+    // Buttons and button-like links fill yellow (or green/red/orange/blue for the semantic ones) on hover and focus: black
+    // text, icons and frame on every one of them. Several rules (.btn-icon, .section-collapsemenu, the pagination) set the
+    // text colour on their own and used to leave white text on the yellow. Disabled ones keep their grey fill.
+    :is(.btn, .page-link, .section-collapsemenu):not(:disabled):not(.disabled):is(:hover, :focus, :focus-visible) {
+        &,
+        * {
+            color: $color-on-focus !important;
+        }
+        border-color: $color-on-focus !important;
+    }
+    // ...and they always do fill: some (.btn-link, .btn-icon in popovers) were left transparent, so the black text vanished.
+    // The semantic ones (success, danger...) keep their own light fill.
+    :is(.btn:not(.btn-success, .btn-danger, .btn-warning, .btn-info), .page-link, .section-collapsemenu):not(:disabled):not(.disabled):is(:hover, :focus, :focus-visible) {
+        background-color: $color-focus !important;
+    }
+
+    // Notifications: unread ones had Boost's pale grey (#f4f4f4) behind white text. A dark grey fill plus a thick frame on
+    // the left (not colour alone) marks unread.
+    .content-item-container {
+        background-color: $color-bg !important;
+        color: $color-text !important;
+
+        &.unread {
+            background-color: $color-surface !important;
+            border-left: 6px solid $color-border !important;
+        }
+    }
+
+    // Messages drawer: its root container is Boost's pale grey (#eff1f3), which left white text on light grey.
+    .message-app {
+        background-color: $color-bg !important;
+        color: $color-text !important;
+    }
+
+    // Alert dismiss button: Bootstrap's dark mode inverts the whole button (filter), which turned its black box white and the
+    // white X invisible on it. No filter: the X is drawn white, and black on the yellow hover/focus fill.
+    .btn-close {
+        filter: none !important;
+        --bs-btn-close-bg: #{svg-close("%23fff")};
+
+        &:hover,
+        &:focus,
+        &:focus-visible {
+            --bs-btn-close-bg: #{svg-close("%23000")};
+        }
+    }
+}
+
+
+// ========================================
+// 33. LARGE TEXT AND SMALL WINDOWS
+// ========================================
+
+// Text size 150% and above: the label column (a quarter of the form) cannot hold the label, the required mark and the
+// 44px-based help button any more (the button spilled over the field). Labels go above their fields instead.
+@each $percent in 150, 200 {
+    body.accessible-fontsize-#{$percent} .mform .fitem.row {
+        > [class*="col-md-"] {
+            flex: 0 0 100%;
+            width: 100%;
+            max-width: 100%;
+        }
+        > [class*="offset-md-"] {
+            margin-left: 0;
+        }
+    }
+}
+
+// --- Profile cards at large text ---
+
+// Boost lays the profile cards out in two columns and indents each list. At 200% text (in Spanish even at 150%) a card is
+// only a few letters wide and words break in the middle ("Direcció-n"). One column and no indent give them the width.
+:root:has(body.accessible-fontsize-150, body.accessible-fontsize-200) .profile_tree {
+    column-count: 1;
+
+    dl {
+        margin-left: 0;
+    }
+}
+
+// --- User preferences page ---
+
+// User preferences page: Boost fixes three columns (col-md-4, a CSS-px breakpoint). Columns sized in rem give fewer,
+// wider ones as the text grows (1 at 200%). Never wider than the screen (22rem is more than a phone).
+#page-user-preferences .container-fluid > .row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(22rem, 100%), 1fr));
+    gap: 1rem;
+
+    > [class*="col-"] {
+        width: auto;
+        max-width: none;
+        padding: 0;
+    }
+}
+// --- Mini calendar in the block drawer ---
+
+// The calendar block in the drawer has seven columns of about 42px, narrower than "Wed" in the theme font at 1.2rem: it
+// broke into "We" / "d". Day names at the minimum size of 1rem, kept on one line, with no extra padding.
+.block_calendar_month .calendarmonth th {
+    font-size: 1rem;
+    padding-left: 0;
+    padding-right: 0;
+    white-space: nowrap;
+}
+
+// --- Long menus under magnification ---
+
+// At 300% browser zoom the window is about 370px by 700px: the "More" menu (11 items) is taller than the space under its
+// button, so it opened upward and its first items ended up behind the fixed top bar, out of reach (the positioning script
+// does not know about the bar). The menu is drawn above the bar, so every item stays visible and clickable, and it never
+// grows taller than the window: the rest scrolls inside the menu.
+.moremenu .dropdown-menu,
+.usermenu .dropdown-menu {
+    max-height: calc(100vh - 1rem);
+    overflow-y: auto;
+    // Above the bar (1040, see the drawers section) and below modals (1050): a "More" menu that opens upward from the
+    // secondary navigation stays in front of the bar.
+    z-index: 1045;
+}
+
+// --- Phone widths ---
+
+// Bootstrap keeps the text of buttons and dropdown toggles on one line. With the larger theme text and long translations
+// ("Ordenar por nombre del curso", "Restaurar valores predeterminados") a single button was wider than a phone and the
+// whole page scrolled sideways. Let the label wrap, and let rows of actions wrap too.
+@include media-breakpoint-down(lg) {
+    .btn,
+    .dropdown-toggle,
+    a.section-collapsemenu,
+    input[type="submit"],
+    input[type="button"] {
+        white-space: normal;
+        max-width: 100%;
+    }
+
+    // Bootstrap's .text-nowrap on the "Collapse all / Expand all" label and on the activity completion button
+    // ("Marcar como hecha").
+    .section-collapsemenu .text-nowrap,
+    [data-region="completion-info"] .text-nowrap {
+        white-space: normal !important;
+    }
+
+    // Participants filter: its buttons ("Add condition", "Clear filters"...) share one row that did not wrap.
+    .filter-group .d-flex {
+        flex-wrap: wrap;
+    }
+}
+
+// Boost keeps the breadcrumb on one line below md and cuts every item with an ellipsis: on a phone the items shrank to one
+// or two letters ("A… / F… / I") and the last one still pushed the page sideways. The trail wraps instead and every item
+// shows its full name. Boost also gives it width: 100% on top of its side margins (room for the drawer buttons), one more
+// push past the screen edge: its width comes from the margins instead.
+.breadcrumb {
+    flex-wrap: wrap !important;
+    width: auto !important;
+
+    .breadcrumb-item {
+        overflow: visible !important;
+    }
+
+    .breadcrumb-item a,
+    .breadcrumb-item span:not(.visually-hidden) {
+        white-space: normal !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+    }
+}
+
+
+// Rows that no longer fit at 200% text on a desktop-wide window, where Bootstrap's px breakpoints still say "wide":
+// the course section header (title + Collapse all), the participants filter bar and the course management actions.
+.course-section-header,
+#page-user-index .navitem,
+#page-user-index .navitem > .d-flex,
+.course-item-actions .d-flex {
+    flex-wrap: wrap;
+}
+
+// Activity cards on the course page: Boost puts the completion button under the activity name only below sm (576px). At
+// 200% on a 1024px screen the button ("To do", 27rem wide in Spanish) stayed beside the name and the page scrolled
+// sideways. Boost's stacked layout is used below the sm breakpoint scaled by the text size (720px at 125%, 864px at 150%,
+// 1152px at 200%).
+@each $percent, $width in (125: 45em, 150: 54em, 200: 72em) {
+    @media (max-width: ($width - 0.01em)) {
+        body.accessible-fontsize-#{$percent} .activity-item {
+            .activity-grid {
+                grid-template-areas:
+                    "icon          name          actions"
+                    "icon          visibility    actions"
+                    "dates         dates         dates"
+                    "groupmode     groupmode     groupmode"
+                    "completion    completion    completion"
+                    "altcontent    altcontent    altcontent"
+                    "afterlink     afterlink     afterlink"
+                    "availability  availability  availability";
+            }
+
+            .activity-grid.noname-grid {
+                grid-template-columns: 1fr min-content;
+                grid-template-areas:
+                    "visibility    actions"
+                    "altcontent    altcontent"
+                    "groupmode     groupmode"
+                    "afterlink     afterlink"
+                    "completion    completion"
+                    "availability  availability";
+            }
+        }
+    }
+}
+
+// The tertiary navigation row (the lesson's "Edit" / "Grade essays" buttons, for example) ran past a phone's edge.
+.tertiary-navigation .d-flex {
+    flex-wrap: wrap;
+}
+
+// Phones: boxes that could not shrink below their content and pushed the page sideways. Activity badges ("Hidden from
+// students") kept one line and set the width of the activity row; the summary column of the course list and the header of
+// collapsible form sections kept the width of their longest content.
+.activity-badges {
+    flex-wrap: wrap;
+
+    .badge {
+        white-space: normal;
+        text-align: start;
+    }
+}
+.coursebox .flex-grow-1,
+.mform .ftoggler,
+.mform .ftoggler > * {
+    min-width: 0;
+}
+
+// A-Z initial filters (26 letters) and the course management action icons: wrap onto more rows instead of one long row.
+.pagination,
+.course-item-actions {
+    flex-wrap: wrap;
+}
+// The action icons of a course row stay on one line.
+.course-item-actions {
+    display: inline-flex;
+}
+
+
+// ========================================
+// 34. VIDEO PLAYER (Video.js)
+// ========================================
+
+// Moodle's media player (media_videojs: video, audio, YouTube). Its controls follow the theme: white bar with a black frame,
+// black icons, yellow hover, always visible (Video.js hides them until the video starts and again when the pointer rests, which
+// leaves keyboard, magnifier and tremor users without controls). The bar sits in its own strip BELOW the picture, so it never
+// covers the image; the controls inside the YouTube iframe are YouTube's and cannot be themed. Section 7's global button rule
+// (44px, frame, white fill, position: relative) also reaches these buttons, hence the resets.
+.video-js {
+    --accessible-video-bar: calc(#{$min-touch-target} + #{$border-width * 2}); // 44px buttons between the bar's two lines
+    background-color: $color-bg;
+    color: $color-text;
+    border: $border-width solid $color-border;
+}
+
+// The strip for the bar: fluid players get its height as padding; the picture layers keep the space above it.
+.video-js.vjs-fluid:not(.vjs-audio-only-mode):not(.vjs-audio) {
+    padding-bottom: var(--accessible-video-bar);
+    border-bottom: 0; // the bar's own bottom line closes the frame
+
+    // The poster only as a direct child: it holds a <picture class="vjs-poster"> that would otherwise be shortened twice. The
+    // others are not always direct children (the YouTube iframe sits inside a wrapper; once playing it is 100% high again).
+    > .vjs-poster,
+    .vjs-tech,
+    .vjs-text-track-display,
+    .vjs-iframe-blocker {
+        top: 0 !important;
+        bottom: auto !important;
+        height: calc(100% - var(--accessible-video-bar)) !important;
+    }
+
+    .vjs-loading-spinner {
+        top: calc((100% - var(--accessible-video-bar)) / 2);
+    }
+}
+
+// Full screen: the player is the whole screen, there is no strip to reserve.
+.video-js.vjs-fullscreen.vjs-fluid {
+    padding-bottom: 0 !important;
+    border: 0;
+}
+
+// Big play button: centred on the picture, not on the whole player (the global button rule had turned it into a relative box
+// that ended up in a corner).
+.video-js .vjs-big-play-button {
+    position: absolute !important;
+    top: calc((100% - var(--accessible-video-bar)) / 2) !important;
+    left: 50% !important;
+    margin: 0 !important;
+    transform: translate(-50%, -50%);
+    width: 2em !important;
+    height: 1.5em !important;
+    min-width: 0 !important;
+    min-height: $min-touch-target !important;
+    padding: 0 !important;
+    font-size: 2.5rem !important;
+    line-height: 1 !important;
+    background-image: none !important;
+
+    // The icon is drawn over the whole button: centre it in the box.
+    .vjs-icon-placeholder::before {
+        line-height: 1.5em !important;
+        text-align: center;
+    }
+}
+
+// Section 7 forces display: inline-block on every button, which beat Video.js hiding this one once the video has started.
+.video-js.vjs-has-started .vjs-big-play-button,
+.video-js.vjs-controls-disabled .vjs-big-play-button,
+.video-js.vjs-using-native-controls .vjs-big-play-button,
+.video-js.vjs-error .vjs-big-play-button {
+    display: none !important;
+}
+
+// The bar: always shown, once the video has started or not, active or inactive.
+.video-js .vjs-control-bar,
+.video-js.vjs-has-started.vjs-user-inactive.vjs-playing .vjs-control-bar {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    box-sizing: border-box;
+    height: var(--accessible-video-bar);
+    align-items: stretch;
+    background-color: $color-bg;
+    border-top: $border-width solid $color-border;
+    border-bottom: $border-width solid $color-border;
+    color: $color-text;
+}
+
+// Buttons of the bar: black on white, yellow on hover, the theme's ring on focus (section 7); only the size and frame change.
+.video-js .vjs-control-bar > .vjs-control,
+.video-js .vjs-control-bar > button,
+.video-js .vjs-volume-panel .vjs-mute-control {
+    height: 100% !important;
+    min-width: $min-touch-target !important;
+    width: auto;
+    padding: 0 !important;
+    margin: 0 !important;
+    font-size: 1rem !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background-image: none !important;
+    text-shadow: none;
+}
+
+// Only the real buttons carry a frame (left and right lines, overlapped when two touch); readouts and sliders have none, so a
+// frame always means "you can press this".
+.video-js .vjs-control-bar > .vjs-button,
+.video-js .vjs-control-bar > .vjs-playback-rate,
+.video-js .vjs-volume-panel .vjs-mute-control {
+    border-left: $border-width solid $color-border !important;
+    border-right: $border-width solid $color-border !important;
+    margin-left: -$border-width !important;
+}
+
+// The next button overlaps the 2px line of the previous one and was painted over its focus ring: the focused one goes on top.
+.video-js .vjs-control-bar > .vjs-button:focus,
+.video-js .vjs-control-bar > .vjs-playback-rate:focus-within,
+.video-js .vjs-volume-panel .vjs-mute-control:focus {
+    z-index: 2;
+}
+
+// The player's own frame is the left line of the first button.
+.video-js .vjs-control-bar > .vjs-play-control {
+    margin-left: 0 !important;
+    border-left: 0 !important;
+}
+
+// The volume slider is always open at a fixed width. Video.js collapses it and widens it on hover or focus, which pushed the
+// progress bar and the times sideways every time the pointer crossed the mute button.
+.video-js .vjs-control-bar .vjs-volume-panel.vjs-volume-panel-horizontal {
+    width: auto !important;
+    transition: none !important;
+
+    .vjs-volume-control {
+        width: 5rem !important;
+        height: auto !important;
+        position: relative !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        transition: none !important;
+        min-width: 0 !important;
+        border: 0 !important;
+        margin: 0 !important;
+    }
+}
+
+.video-js .vjs-control-bar .vjs-control:hover::before,
+.video-js .vjs-control-bar .vjs-control:focus::before,
+.video-js .vjs-control-bar .vjs-icon-placeholder::before {
+    text-shadow: none;
+}
+
+// Time read-outs: black text on the white bar, elapsed / total close together.
+.video-js .vjs-control-bar > .vjs-time-control {
+    min-width: 0 !important;
+    padding: 0 0.25rem;
+}
+
+.video-js .vjs-control-bar > .vjs-current-time {
+    padding-left: 0.75rem;
+}
+
+.video-js .vjs-time-control {
+    display: flex;
+    align-items: center;
+    color: $color-text;
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1;
+}
+
+// Progress and volume: the frame and three different luminances (track, loaded, played) carry the meaning, not colour.
+.video-js .vjs-slider {
+    background-color: $color-surface;
+    border: $border-width solid $color-border;
+    text-shadow: none;
+}
+
+// The speed label ("1x") is drawn over the whole button by Video.js; only its colour and size change.
+.video-js .vjs-playback-rate .vjs-playback-rate-value {
+    color: $color-text;
+    font-size: 1.1rem;
+    font-weight: 700;
+    line-height: var(--accessible-video-bar);
+    text-shadow: none;
+}
+
+// Video.js builds this control as a wrapper holding the label and a button laid over it; the global button rule gave that button
+// a white fill that hid the label. The button is transparent and the wrapper takes the hover fill.
+.video-js .vjs-playback-rate > button {
+    background-color: transparent !important;
+    background-image: none !important; // section 7's underline strip was a second bottom line
+    border: 0 !important;
+    color: transparent !important;
+}
+
+.video-js .vjs-playback-rate:hover,
+.video-js .vjs-playback-rate:focus-within {
+    background-color: $color-focus;
+
+    .vjs-playback-rate-value {
+        color: $color-on-focus;
+    }
+}
+
+// Volume track: same height and frame as the progress track, centred in the bar (Video.js makes it 0.3em high with big margins).
+.video-js .vjs-volume-control {
+    display: flex;
+    align-items: center;
+}
+
+.video-js .vjs-volume-bar.vjs-slider-horizontal {
+    height: 0.75rem;
+    margin: 0 0.75rem;
+}
+
+.video-js .vjs-volume-level {
+    top: 0;
+    height: 100%;
+}
+
+.video-js .vjs-progress-holder {
+    height: 0.75rem;
+}
+
+// Video.js enlarges the progress knob (and its font-size based parts) while the pointer is over the bar: things that move under
+// the pointer are hard to hit for tremor and magnifier users.
+.video-js .vjs-progress-control:hover .vjs-progress-holder {
+    font-size: inherit !important;
+}
+
+.video-js .vjs-load-progress,
+.video-js .vjs-load-progress div {
+    background-color: $color-strong-grey;
+}
+
+.video-js .vjs-play-progress,
+.video-js .vjs-volume-level {
+    background-color: $color-text;
+}
+
+// The knobs: centred on the track (Video.js hangs them from a fixed offset that assumes a thinner, frameless track).
+.video-js .vjs-play-progress::before,
+.video-js .vjs-volume-level::before {
+    top: 50%;
+    transform: translateY(-50%);
+    line-height: 1;
+    color: $color-text;
+    text-shadow: none;
+}
+
+.video-js .vjs-progress-control,
+.video-js .vjs-volume-panel {
+    align-items: center;
+}
+
+// The progress control takes the free width of the bar (the generic width reset above would shrink it).
+.video-js .vjs-control-bar .vjs-progress-control {
+    flex: 1 1 auto;
+    min-width: 4rem;
+    // !important: the generic padding reset of the bar's controls is also !important. The room keeps the knob, which hangs half
+    // outside the track at 0%, off the elapsed/total times.
+    padding: 0 0.75rem !important;
+}
+
+.video-js .vjs-progress-control .vjs-progress-holder {
+    flex: 1 1 auto;
+    margin: 0;
+}
+
+// Menus (speed, captions, chapters): same frame and fills as the theme's dropdowns.
+.video-js .vjs-menu-button-popup .vjs-menu .vjs-menu-content {
+    background-color: $color-bg;
+    color: $color-text;
+    border: $border-width solid $color-border;
+}
+
+// Controls that go when the bar is short of room (large text, narrow players): the secondary read-outs and the volume slider (the
+// mute button and the remaining time stay, the progress bar and the full-screen button are untouched). Trade-off: no elapsed/total
+// time, no volume slider, no picture-in-picture button.
+@mixin video-compact-bar {
+    .vjs-volume-control,
+    .vjs-current-time,
+    .vjs-time-divider,
+    .vjs-duration,
+    .vjs-picture-in-picture-control,
+    .vjs-seek-to-live-control {
+        display: none !important;
+    }
+}
+
+// Large text: 44px-based buttons grow with the text and the bar would overflow the picture's width.
+@each $percent in 150, 200 {
+    body.accessible-fontsize-#{$percent} .video-js {
+        @include video-compact-bar;
+    }
+}
+
+// Narrow players (small windows, drawers open, columns): the bar overflowed below about 31rem (37rem with the
+// live button) and cut off the speed and full-screen buttons. The player is a size container, so the width that counts is its
+// own, not the window's. Below 19.5rem the remaining time goes too (play, mute, progress, speed and full screen stay);
+// below 15.5rem the speed button as well.
+.video-js {
+    container-type: inline-size;
+}
+
+@container (max-width: 37.4rem) {
+    .vjs-control-bar {
+        @include video-compact-bar;
+    }
+}
+
+@container (max-width: 19.5rem) {
+    .vjs-control-bar .vjs-remaining-time {
+        display: none !important;
+    }
+}
+
+// At 320px (WCAG reflow width) the player is about 12.5rem: the speed button goes and the progress bar gives up its room.
+@container (max-width: 15.5rem) {
+    .vjs-control-bar .vjs-playback-rate {
+        display: none !important;
+    }
+
+    .vjs-control-bar .vjs-progress-control {
+        min-width: 2rem;
+        padding: 0 0.5rem !important;
+    }
+}
+
+// The "live" button only for live streams (Video.js gives them .vjs-live). On a recorded video it said "LIVE" and touched the
+// remaining time.
+.video-js:not(.vjs-live) .vjs-control-bar > .vjs-seek-to-live-control {
+    display: none !important;
+}
+
+// Menus open only on click or Enter (Video.js also opens them while the pointer hovers, and closes them again when it crosses the
+// gap between the button and the menu, which made them flicker away).
+.video-js.vjs-workinghover .vjs-menu-button-popup.vjs-hover .vjs-menu:not(.vjs-lock-showing) {
+    display: none !important;
+}
+
+.video-js .vjs-menu li {
+    font-size: 1rem;
+    line-height: 1.4;
+    text-transform: none;
+    color: $color-text;
+
+    &:hover,
+    &:focus {
+        background-color: $color-focus;
+        color: $color-on-focus;
+    }
+
+    // The chosen item: inverted fill and bold, so it does not depend on colour.
+    &.vjs-selected {
+        background-color: $color-text;
+        color: $color-bg;
+        font-weight: 700;
+    }
+}
+
+
+// ========================================
+// 35. CALENDAR
+// ========================================
+
+// Previous / current / next month: Boost floats them at fixed widths (25% / 50% / 25%). A month name at large text
+// ("diciembre" at 200%) is wider than a quarter of a phone and spilled past the screen edge. The links take the width
+// of their text, the current month the rest, and the row wraps when they do not fit.
+.calendar-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: $spacing-sm;
+
+    .previous,
+    .current,
+    .next {
+        float: none;
+        width: auto;
+    }
+
+    .current {
+        flex: 1 1 auto;
+    }
+
+    // On its own line the next month stays at the end of the line (right, left in RTL), as on wide screens.
+    .next {
+        margin-inline-start: auto;
+    }
+}
+
+// Day circle of the month view: the only exception to the global border-box sizing (section 4).
+.maincalendar .calendarmonth td .day-number-circle {
+    box-sizing: content-box !important;
+    display: inline-block !important;
+    line-height: 0 !important;
+    width: 30px !important;
+    height: 30px !important;
+}
+
+// Day number inside the circle: fills it and is centred vertically with the line height (30px = circle height).
+.maincalendar .calendarmonth td .day-number {
+    box-sizing: border-box !important;
+    display: inline-block !important;
+    padding: 0 !important;  // No padding
+    width: 100% !important;
+    height: 100% !important;
+    text-align: center !important;
+    line-height: 30px !important;  // Vertical centring with the line height
+    vertical-align: middle !important;
+}
+
+// Today in the calendars: Boost's white on #0f6cbf is 5.5:1 (below AAA), so today is drawn like the current item of
+// the pagination: the text colour as fill with the page colour on it (21:1), in both modes.
+.today .day-number-circle {
+    background-color: $color-text !important;
+    color: $color-bg !important;
+    border: $border-width solid $color-border !important;
+}

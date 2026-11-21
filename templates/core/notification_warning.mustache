@@ -1,0 +1,50 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+
+    @copyright 2022-2023 Koditik Dev team
+    @copyright 2023-2026 Fernando Acedo
+}}
+{{!
+    Accessible override of the core notification templates (this file and the four that extend it): same markup plus
+    the type of the alert (Error, Success, Warning, Information) as visible text before the message (also read by screen readers) and as a tooltip over the icon
+    area. The core alerts say their type only with a colour, a pattern and an icon, which a screen reader cannot read.
+}}
+{{!
+    @template core/notification_warning
+
+    Moodle notification template.
+
+    The purpose of this template is to render a warning notification.
+
+    Classes required for JS:
+    * none
+
+    Data attributes required for JS:
+    * none
+
+    Context variables required for this template:
+    * message A cleaned string (use clean_text()) to display.
+    * extraclasses Additional classes to apply to the notification.
+    * closebutton Whether a close button should be displayed to dismiss the message.
+    * announce Whether the notification should be announced to screen readers.
+
+    Example context (json):
+    { "message": "Your pants are on fire!", "closebutton": 1, "announce": 1, "extraclasses": "foo bar"}
+}}
+{{< core/notification_base}}
+    {{$alertclass}}alert-warning{{/alertclass}}
+    {{$alerttype}}<span class="accessible-alerttype" title="{{#str}}alertwarning, theme_accessible{{/str}}" aria-hidden="true"></span><span class="accessible-alerttype-label">{{#str}}alertwarning, theme_accessible{{/str}}: </span>{{/alerttype}}
+{{/core/notification_base}}

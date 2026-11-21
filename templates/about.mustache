@@ -1,0 +1,161 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+
+    @copyright 2022-2023 Koditik Dev team
+    @copyright 2023-2026 Fernando Acedo
+}}
+{{!
+    @template theme_accessible/about
+
+    Information tab of the theme settings: version, colour vision test, alert samples, fonts and licences.
+
+    The colours of the test image are literal on purpose: they must not follow the theme palette.
+
+    Example context (json):
+    {
+        "versiontext": "Accessible theme version 0.0.1030 (build 2026103000).",
+        "guideurl": "https://example.com/theme/accessible/guide.php",
+        "preferencesurl": "https://example.com/theme/accessible/preferences.php",
+        "defaultsurl": "https://example.com/admin/settings.php?section=themesettingaccessible",
+        "supportinfo": "Moodle: 5.2 (2026041000)",
+        "issuesurl": "",
+        "colorfilteractive": false,
+        "swatches": [{"x": 0, "hex": "#C8281E"}],
+        "pairs": [{"x1": 0, "hex1": "#C8281E", "x2": 60, "hex2": "#3F8F2F"}],
+        "stops": [{"offset": 0, "hex": "#FF0000"}, {"offset": 100, "hex": "#8000FF"}],
+        "legend": [{"name": "Red", "hex": "#C8281E"}],
+        "pairlegend": ["Red and Green"],
+        "previews": [{"label": "Original colours", "filter": "", "alt": "Colour test image: Original colours"}],
+        "alerts": ["<div class=\"alert alert-success\">Success: This is a sample message.</div>"],
+        "fonts": [{"key": "lexenddeca", "name": "Lexend Deca"}],
+        "licences": [{"name": "GNU General Public License", "appliesto": "The theme", "officialurl": "https://www.gnu.org/licenses/gpl-3.0.html", "officialhost": "gnu.org", "items": [{"subject": "Accessible theme", "copyright": "", "copyurl": "https://example.com/theme/accessible/LICENSE.txt", "copyfile": "LICENSE.txt"}]}]
+    }
+}}
+<div class="accessible-about">
+    <h2>{{versiontext}}</h2>
+
+    <section class="accessible-about-guide">
+        <h3>{{#str}} guidesection, theme_accessible {{/str}}</h3>
+        <p>{{#str}} guideintro, theme_accessible {{/str}}</p>
+        <p>
+            <a class="btn btn-primary" href="{{{guideurl}}}" target="_blank" rel="noopener">{{#str}} guidebutton, theme_accessible {{/str}}<span class="visually-hidden"> {{#str}} opensinnewtab, theme_accessible {{/str}}</span></a>
+        </p>
+    </section>
+
+    <h3>{{#str}} supporttitle, theme_accessible {{/str}}</h3>
+    <p>{{#str}} supportintro, theme_accessible {{/str}}</p>
+    <pre class="accessible-about-support" id="accessible-about-support" lang="en" dir="ltr">{{supportinfo}}</pre>
+    <p class="accessible-about-supportactions">
+        <button type="button" class="btn btn-secondary" data-action="accessible-copy-support">
+            {{#pix}} t/copy, core {{/pix}} {{#str}} supportcopy, theme_accessible {{/str}}
+        </button>
+        {{#issuesurl}}
+            <a class="btn btn-secondary" href="{{{issuesurl}}}" target="_blank" rel="noopener">{{#str}} supportreport, theme_accessible {{/str}}<span class="visually-hidden"> {{#str}} opensinnewtab, theme_accessible {{/str}}</span></a>
+        {{/issuesurl}}
+        {{^issuesurl}}
+            <button type="button" class="btn btn-secondary" disabled>{{#str}} supportreport, theme_accessible {{/str}}</button>
+            {{#str}} supportreportsoon, theme_accessible {{/str}}
+        {{/issuesurl}}
+    </p>
+    <div class="accessible-about-copystatus" role="status"></div>
+    <template data-copy-result="copied">{{{copiedalert}}}</template>
+    <template data-copy-result="failed">{{{failedalert}}}</template>
+
+    <h3>{{#str}} infolinkstitle, theme_accessible {{/str}}</h3>
+    <ul>
+        <li><a href="{{{preferencesurl}}}">{{#str}} infolinkpreferences, theme_accessible {{/str}}</a></li>
+        <li><a href="{{{defaultsurl}}}">{{#str}} infolinkdefaults, theme_accessible {{/str}}</a></li>
+    </ul>
+
+    <h3>{{#str}} colortesttitle, theme_accessible {{/str}}</h3>
+    <p>{{#str}} colortestintro, theme_accessible {{/str}}</p>
+    <p>{{#str}} colortestdisclaimer, theme_accessible {{/str}}</p>
+    {{#colorfilteractive}}
+        <div class="alert alert-warning" role="status">{{#str}} colortestactive, theme_accessible {{/str}}</div>
+    {{/colorfilteractive}}
+
+    <svg width="0" height="0" focusable="false" aria-hidden="true" style="position: absolute;">
+        <defs>
+            <linearGradient id="accessible-about-spectrum" x1="0" x2="1" y1="0" y2="0">
+                {{#stops}}<stop offset="{{offset}}%" stop-color="{{hex}}"/>{{/stops}}
+            </linearGradient>
+        </defs>
+        <symbol id="accessible-about-colortest" viewBox="0 0 600 300">
+            <rect x="0" y="0" width="600" height="70" fill="url(#accessible-about-spectrum)"/>
+            {{#swatches}}<rect x="{{x}}" y="90" width="60" height="70" fill="{{hex}}"/>{{/swatches}}
+            {{#pairs}}
+                <rect x="{{x1}}" y="180" width="60" height="120" fill="{{hex1}}"/>
+                <rect x="{{x2}}" y="180" width="60" height="120" fill="{{hex2}}"/>
+            {{/pairs}}
+        </symbol>
+    </svg>
+
+    <ul class="accessible-about-previews list-unstyled">
+        {{#previews}}
+            <li>
+                <svg class="accessible-about-test" viewBox="0 0 600 300" role="img" aria-label="{{alt}}"
+                     {{#filter}}style="filter: url(#{{filter}});"{{/filter}}>
+                    <use href="#accessible-about-colortest" width="600" height="300"/>
+                </svg>
+                <span class="accessible-about-previewlabel">{{label}}</span>
+            </li>
+        {{/previews}}
+    </ul>
+
+    <h4>{{#str}} colortestlegend, theme_accessible {{/str}}</h4>
+    <p>{{#str}} colortestlegendintro, theme_accessible {{/str}}</p>
+    <ol>
+        {{#legend}}<li>{{name}} ({{hex}})</li>{{/legend}}
+    </ol>
+    <h4>{{#str}} colortestpairs, theme_accessible {{/str}}</h4>
+    <ol>
+        {{#pairlegend}}<li>{{.}}</li>{{/pairlegend}}
+    </ol>
+
+    <h3>{{#str}} alertstitle, theme_accessible {{/str}}</h3>
+    <p>{{#str}} alertsintro, theme_accessible {{/str}}</p>
+    {{#alerts}}{{{.}}}{{/alerts}}
+
+    <h3>{{#str}} fontstitle, theme_accessible {{/str}}</h3>
+    <p>{{#str}} fontsintro, theme_accessible {{/str}}</p>
+    {{#fonts}}
+        <section class="accessible-about-font accessible-about-font-{{key}}">
+            <h4>{{name}}</h4>
+            <p class="accessible-about-sample-large">{{#str}} fontsample, theme_accessible {{/str}}</p>
+            <p><span class="accessible-about-sample-label">{{#str}} fontregular, theme_accessible {{/str}}:</span>
+                {{#str}} fontsample, theme_accessible {{/str}}</p>
+            <p class="accessible-about-bold"><span class="accessible-about-sample-label">{{#str}} fontbold, theme_accessible {{/str}}:</span>
+                {{#str}} fontsample, theme_accessible {{/str}}</p>
+            <p>{{#str}} fontconfusable, theme_accessible {{/str}}</p>
+        </section>
+    {{/fonts}}
+
+    <h3>{{#str}} licencestitle, theme_accessible {{/str}}</h3>
+    <p>{{#str}} licencesintro, theme_accessible {{/str}}</p>
+    {{#licences}}
+        <section class="accessible-about-licence">
+            <h4>{{name}}</h4>
+            <p>{{appliesto}}</p>
+            <ul>
+                {{#items}}
+                    <li><strong>{{subject}}</strong>{{#copyright}}: <span lang="en">{{copyright}}</span>{{/copyright}}<br>
+                        <a href="{{{copyurl}}}">{{#str}} licencecopylink, theme_accessible, {{copyfile}} {{/str}}</a></li>
+                {{/items}}
+            </ul>
+            <p><a href="{{{officialurl}}}">{{#str}} licenceofficiallink, theme_accessible, {{officialhost}} {{/str}}</a></p>
+        </section>
+    {{/licences}}
+</div>

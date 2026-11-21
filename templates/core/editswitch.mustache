@@ -1,0 +1,71 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+
+    @copyright 2022-2023 Koditik Dev team
+    @copyright 2023-2026 Fernando Acedo
+}}
+{{!
+
+    @template core/editswitch
+
+    This template renders the site-wide Edit mode switch (Accessible theme: always the plain server-side switch, never the
+    design system React component of Moodle 5.3, so the theme styles and the visible On/Off text apply).
+    Moodle 5.3 passes elementid (shared with its React props); Moodle 5.2 does not, so a generated id is used then.
+    The switch itself carries a tooltip with the name and the state: at larger text sizes and on narrow bars the label is
+    visually hidden. It is on the wrapper, not on the input, so screen readers do not read the name twice.
+
+    Example context (json):
+    {
+        "url": "http://localhost/",
+        "sesskey": "sesskey",
+        "edit": 1,
+        "adminedit": true,
+        "checked": "",
+        "string": "Edit on",
+        "legacyseturl": "/editmode.php",
+        "elementid": "editingswitch-abc123"
+    }
+}}
+<div class="divider border-start h-75 align-self-center ms-1 me-3"></div>
+<form action="{{{legacyseturl}}}" method="post" class="d-flex align-items-center editmode-switch-form">
+    <div class="input-group">
+        <label class="me-2 mb-0 form-check-label" for="{{#elementid}}{{.}}{{/elementid}}{{^elementid}}{{uniqid}}-editingswitch{{/elementid}}">
+            {{#str}} editmode, theme_accessible {{/str}}{{! The state is also conveyed as text so it never relies on colour alone; screen readers get it from role="switch". }}<span class="editmode-state" aria-hidden="true">: {{#checked}}{{#str}}editswitchon, theme_accessible{{/str}}{{/checked}}{{^checked}}{{#str}}editswitchoff, theme_accessible{{/str}}{{/checked}}</span>
+        </label>
+        <div class="form-check form-switch" title="{{#str}} editmode, theme_accessible {{/str}}: {{#checked}}{{#str}}editswitchon, theme_accessible{{/str}}{{/checked}}{{^checked}}{{#str}}editswitchoff, theme_accessible{{/str}}{{/checked}}">
+            <input type="checkbox"{{!
+                }} name="setmode"{{!
+                }} role="switch"{{!
+                }}{{#checked}}{{!
+                    }} checked{{!
+                }}{{/checked}}{{!
+                }} class="form-check-input"{{!
+                }} id="{{#elementid}}{{.}}{{/elementid}}{{^elementid}}{{uniqid}}-editingswitch{{/elementid}}"{{!
+                }} data-context="{{{pagecontextid}}}"{{!
+                }} data-pageurl="{{{pageurl}}}"{{!
+            }}>
+            <span class="form-check-label" aria-hidden="true">&nbsp;</span>
+        </div>
+    </div>
+    <input type="hidden" name="sesskey" value="{{{sesskey}}}">
+    <input type="hidden" name="pageurl" value="{{{pageurl}}}">
+    <input type="hidden" name="context" value="{{{pagecontextid}}}">
+</form>
+{{#js}}
+require(['core/edit_switch'], function(editSwitch) {
+    editSwitch.init('{{#elementid}}{{.}}{{/elementid}}{{^elementid}}{{uniqid}}-editingswitch{{/elementid}}');
+});
+{{/js}}

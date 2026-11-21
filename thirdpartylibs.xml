@@ -1,0 +1,125 @@
+<?xml version="1.0"?>
+<libraries>
+  <library>
+    <location>fonts/lexend-deca-latin-400-normal.woff2</location>
+    <name>Lexend Deca</name>
+    <version>1.007</version>
+    <description>Lexend Deca font from Google Fonts, regular, latin subset as Google Fonts serves it (woff2), offered as a user option.</description>
+    <license>SIL OFL</license>
+    <licenseversion>1.1</licenseversion>
+    <repository>https://github.com/googlefonts/lexend</repository>
+    <copyrights>
+      <copyright>2019 The Lexend Project Authors</copyright>
+    </copyrights>
+  </library>
+  <library>
+    <location>fonts/lexend-deca-latin-700-normal.woff2</location>
+    <name>Lexend Deca</name>
+    <version>1.007</version>
+    <description>Lexend Deca font from Google Fonts, bold, latin subset as Google Fonts serves it (woff2), offered as a user option.</description>
+    <license>SIL OFL</license>
+    <licenseversion>1.1</licenseversion>
+    <repository>https://github.com/googlefonts/lexend</repository>
+    <copyrights>
+      <copyright>2019 The Lexend Project Authors</copyright>
+    </copyrights>
+  </library>
+  <library>
+    <location>fonts/lexend-deca-latin-ext-400-normal.woff2</location>
+    <name>Lexend Deca</name>
+    <version>1.007</version>
+    <description>Lexend Deca font from Google Fonts, regular, latin-ext subset as Google Fonts serves it (woff2), offered as a user option.</description>
+    <license>SIL OFL</license>
+    <licenseversion>1.1</licenseversion>
+    <repository>https://github.com/googlefonts/lexend</repository>
+    <copyrights>
+      <copyright>2019 The Lexend Project Authors</copyright>
+    </copyrights>
+  </library>
+  <library>
+    <location>fonts/lexend-deca-latin-ext-700-normal.woff2</location>
+    <name>Lexend Deca</name>
+    <version>1.007</version>
+    <description>Lexend Deca font from Google Fonts, bold, latin-ext subset as Google Fonts serves it (woff2), offered as a user option.</description>
+    <license>SIL OFL</license>
+    <licenseversion>1.1</licenseversion>
+    <repository>https://github.com/googlefonts/lexend</repository>
+    <copyrights>
+      <copyright>2019 The Lexend Project Authors</copyright>
+    </copyrights>
+  </library>
+  <library>
+    <location>fonts/atkinson-hyperlegible-latin-400-normal.woff2</location>
+    <name>Atkinson Hyperlegible</name>
+    <version>1.006</version>
+    <description>Atkinson Hyperlegible font from Google Fonts, regular, latin subset as Google Fonts serves it (woff2), offered as a user option.</description>
+    <license>SIL OFL</license>
+    <licenseversion>1.1</licenseversion>
+    <repository>https://github.com/googlefonts/atkinson-hyperlegible</repository>
+    <copyrights>
+      <copyright>2020 Braille Institute of America, Inc.</copyright>
+    </copyrights>
+  </library>
+  <library>
+    <location>fonts/atkinson-hyperlegible-latin-700-normal.woff2</location>
+    <name>Atkinson Hyperlegible</name>
+    <version>1.006</version>
+    <description>Atkinson Hyperlegible font from Google Fonts, bold, latin subset as Google Fonts serves it (woff2), offered as a user option.</description>
+    <license>SIL OFL</license>
+    <licenseversion>1.1</licenseversion>
+    <repository>https://github.com/googlefonts/atkinson-hyperlegible</repository>
+    <copyrights>
+      <copyright>2020 Braille Institute of America, Inc.</copyright>
+    </copyrights>
+  </library>
+  <library>
+    <location>fonts/atkinson-hyperlegible-latin-ext-400-normal.woff2</location>
+    <name>Atkinson Hyperlegible</name>
+    <version>1.006</version>
+    <description>Atkinson Hyperlegible font from Google Fonts, regular, latin-ext subset as Google Fonts serves it (woff2), offered as a user option.</description>
+    <license>SIL OFL</license>
+    <licenseversion>1.1</licenseversion>
+    <repository>https://github.com/googlefonts/atkinson-hyperlegible</repository>
+    <copyrights>
+      <copyright>2020 Braille Institute of America, Inc.</copyright>
+    </copyrights>
+  </library>
+  <library>
+    <location>fonts/atkinson-hyperlegible-latin-ext-700-normal.woff2</location>
+    <name>Atkinson Hyperlegible</name>
+    <version>1.006</version>
+    <description>Atkinson Hyperlegible font from Google Fonts, bold, latin-ext subset as Google Fonts serves it (woff2), offered as a user option.</description>
+    <license>SIL OFL</license>
+    <licenseversion>1.1</licenseversion>
+    <repository>https://github.com/googlefonts/atkinson-hyperlegible</repository>
+    <copyrights>
+      <copyright>2020 Braille Institute of America, Inc.</copyright>
+    </copyrights>
+  </library>
+  <library>
+    <location>fonts/opendyslexic-400-normal.woff2</location>
+    <name>OpenDyslexic</name>
+    <version>0.990</version>
+    <description>OpenDyslexic font, regular, complete unmodified file as published by its author (woff2; Latin, Greek, Cyrillic and IPA), offered as a user option.</description>
+    <license>SIL OFL</license>
+    <licenseversion>1.1</licenseversion>
+    <repository>https://forge.hackers.town/antijingoist/opendyslexic</repository>
+    <copyrights>
+      <copyright>2019-07-29 Abbie Gonzalez, with Reserved Font Name OpenDyslexic</copyright>
+      <copyright>2012-2019</copyright>
+    </copyrights>
+  </library>
+  <library>
+    <location>fonts/opendyslexic-700-normal.woff2</location>
+    <name>OpenDyslexic</name>
+    <version>0.990</version>
+    <description>OpenDyslexic font, bold, complete unmodified file as published by its author (woff2; Latin, Greek, Cyrillic and IPA), offered as a user option.</description>
+    <license>SIL OFL</license>
+    <licenseversion>1.1</licenseversion>
+    <repository>https://forge.hackers.town/antijingoist/opendyslexic</repository>
+    <copyrights>
+      <copyright>2019-07-29 Abbie Gonzalez, with Reserved Font Name OpenDyslexic</copyright>
+      <copyright>2012-2019</copyright>
+    </copyrights>
+  </library>
+</libraries>

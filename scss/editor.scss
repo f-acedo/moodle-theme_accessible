@@ -1,0 +1,149 @@
+// This file is part of Moodle - http://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+
+// @package   theme_accessible
+// @copyright 2023-2026 Fernando Acedo
+// @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+
+// stylelint-disable max-line-length -- unicode-range strings, inline SVG data URLs and long selectors cannot be wrapped
+// stylelint-disable declaration-no-important -- deliberate: the editing area must keep a white background over the content
+// ========================================
+// ACCESSIBLE THEME: TINYMCE CONTENT STYLES
+// ========================================
+//
+// Purpose: styles of the TinyMCE editing area (an iframe that does not load styles.scss): black on white, links in blue and
+// purple on purpose (so the author can see what is a link), bordered tables, readable code, and the user's font, text size
+// and spacing options.
+//
+// Moodle compiles only this file for the editor: Boost's editor.scss is not inherited once a theme sets editor_scss, so what
+// matters from it is repeated here (tables, code). Boost's full Bootstrap import is not repeated: classes such as .table or
+// .text-muted look plain while editing.
+// Plain values on purpose: the design tokens of styles.scss are not available here.
+//
+// The user's options reach the iframe as classes on its <body> (accessible-font-*, accessible-fontsize-*,
+// accessible-spacing-*), copied from the page body by javascript/accessible.js, because the iframe never gets the page classes.
+//
+// @package   theme_accessible
+// @copyright 2022-2023 Koditik Dev team
+// @copyright 2023-2026 Fernando Acedo
+// ========================================
+
+body {
+    background-color: #fff;
+    color: #000;
+    font-family: "Lexend Deca", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 1.2rem;
+}
+
+// body.mce-content-body to beat TinyMCE's own body.mce-content-body a { color: #0f6cbf } (5.7:1, below AAA).
+body.mce-content-body a {
+    color: #00e;
+    text-decoration: underline;
+}
+
+body.mce-content-body a:visited {
+    color: #551a8b;
+}
+
+// Tables that are not Bootstrap's: the reboot would strip their borders (Boost's editor.scss repeats this). Black, like the
+// theme's other frames.
+table:not(.table) {
+    thead,
+    tbody,
+    tfoot,
+    tr,
+    td,
+    th {
+        border: 1px solid #000;
+    }
+}
+
+// Inline code: same colour as the page's --accessible-code (7.8:1 on white). Code blocks keep the text colour.
+code {
+    color: #a00f55;
+}
+
+pre code {
+    color: inherit;
+}
+
+// The inline code the cursor is in (Boost gave it a grey fill and border; a black frame has more contrast).
+code[data-mce-selected="inline-boundary"]:not(pre code) {
+    background-color: #fff !important;
+    border: 1px solid #000;
+    padding: 0.125rem;
+}
+
+// ========================================
+// User options (the same choices as section 31 of styles.scss)
+// ========================================
+
+// Fonts: the woff2 files of the theme; Moodle resolves [[font:...]] when it serves the editor CSS.
+$unicode-latin: "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD";
+$unicode-latin-ext: "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF";
+
+@mixin font-face($family, $file, $subset, $weight, $range) {
+    @font-face {
+        font-family: $family;
+        font-style: normal;
+        font-display: swap;
+        font-weight: $weight;
+        src: url("[[font:theme|#{$file}-#{if($subset, "#{$subset}-", "")}#{$weight}-normal.woff2]]") format("woff2");
+        @if $range {
+            unicode-range: #{$range};
+        }
+    }
+}
+
+@each $weight in 400, 700 {
+    @include font-face("Lexend Deca", "lexend-deca", "latin", $weight, $unicode-latin);
+    @include font-face("Lexend Deca", "lexend-deca", "latin-ext", $weight, $unicode-latin-ext);
+    @include font-face("Atkinson Hyperlegible", "atkinson-hyperlegible", "latin", $weight, $unicode-latin);
+    @include font-face("Atkinson Hyperlegible", "atkinson-hyperlegible", "latin-ext", $weight, $unicode-latin-ext);
+    // OpenDyslexic: the complete files of its author (a subset could not keep the Reserved Font Name), no unicode-range.
+    @include font-face("OpenDyslexic", "opendyslexic", null, $weight, null);
+}
+
+body.accessible-font-atkinson {
+    font-family: "Atkinson Hyperlegible", sans-serif;
+}
+
+body.accessible-font-opendyslexic {
+    font-family: "OpenDyslexic", sans-serif;
+}
+
+// Text size: sizes are rem, so scaling the root of the iframe scales the text.
+@each $percent in 125, 150, 200 {
+    :root:has(body.accessible-fontsize-#{$percent}) {
+        font-size: #{$percent * 1%};
+    }
+}
+
+// Text spacing (same values as the page).
+body.accessible-spacing-wide {
+    line-height: 1.8;
+    letter-spacing: 0.05em;
+    word-spacing: 0.1em;
+}
+
+body.accessible-spacing-extrawide {
+    line-height: 2;
+    letter-spacing: 0.12em;
+    word-spacing: 0.16em;
+
+    p {
+        margin-bottom: 2em;
+    }
+}
